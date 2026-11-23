@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Stencil &amp; Print Image Splitter — Offline Edition</title>
   <style>
     /* =========================================================================
@@ -56,6 +56,7 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
+      height: 100dvh;
       width: 100vw;
     }
 
@@ -69,12 +70,15 @@
       background: var(--bg-panel);
       border-bottom: 1px solid var(--border);
       gap: 12px;
+      position: relative;
+      z-index: 60;
     }
 
     .brand {
       display: flex;
       align-items: center;
       gap: 10px;
+      min-width: 0;
     }
 
     .brand-icon {
@@ -88,6 +92,7 @@
       font-weight: 800;
       font-size: 14px;
       box-shadow: 0 2px 10px rgba(56, 189, 248, 0.35);
+      flex-shrink: 0;
     }
 
     .brand-title {
@@ -109,7 +114,43 @@
     .topbar-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .mobile-only {
+      display: none;
+    }
+
+    .btn-label-short {
+      display: none;
+    }
+
+    .mobile-drawer-header {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mobile-drawer-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .drawer-backdrop {
+      display: none;
+      position: fixed;
+      inset: 54px 0 0 0;
+      background: rgba(2, 6, 23, 0.65);
+      backdrop-filter: blur(2px);
+      z-index: 45;
+    }
+
+    .drawer-backdrop.open {
+      display: block;
     }
 
     .workspace {
@@ -117,6 +158,7 @@
       display: flex;
       min-height: 0;
       overflow: hidden;
+      position: relative;
     }
 
     /* =========================================================================
@@ -518,6 +560,51 @@
       text-align: center;
     }
 
+    /* Floating On-Screen Split Nudge Bar (Touch & Desktop Friendly) */
+    .nudge-bar {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 15;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.94);
+      border: 1px solid var(--amber);
+      border-radius: 999px;
+      padding: 6px 10px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      max-width: calc(100% - 20px);
+      flex-wrap: nowrap;
+    }
+
+    .nudge-bar.visible {
+      display: flex;
+    }
+
+    .nudge-info {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #fcd34d;
+      padding: 0 6px;
+      white-space: nowrap;
+    }
+
+    .nudge-bar .btn {
+      padding: 6px 10px;
+      border-radius: 999px;
+      min-width: 34px;
+    }
+
+    .nudge-bar .btn.active-step {
+      background: rgba(245, 158, 11, 0.25);
+      border-color: var(--amber);
+      color: #fde68a;
+    }
+
     .stage-hint {
       height: 30px;
       flex-shrink: 0;
@@ -567,15 +654,117 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
+    @media (pointer: coarse) {
+      .btn,
+      .segmented button {
+        min-height: 40px;
+      }
+      .toggle-switch {
+        width: 44px;
+        height: 25px;
+      }
+      .toggle-slider::before {
+        width: 19px;
+        height: 19px;
+      }
+      .toggle-switch input:checked + .toggle-slider::before {
+        transform: translateX(19px);
+      }
+    }
+
     @media (max-width: 860px) {
-      .workspace {
-        flex-direction: column;
+      .topbar {
+        padding: 0 10px;
+        gap: 8px;
+      }
+      .brand-badge {
+        display: none;
+      }
+      .brand-title {
+        font-size: 13.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .brand-icon {
+        width: 26px;
+        height: 26px;
+        font-size: 12px;
+      }
+      .btn-label-full {
+        display: none;
+      }
+      .btn-label-short {
+        display: inline;
+      }
+      .mobile-only {
+        display: inline-flex;
+      }
+      .mobile-drawer-header {
+        display: flex;
       }
       .sidebar {
-        width: 100%;
-        max-height: 44vh;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
+        position: fixed;
+        top: 54px;
+        bottom: 0;
+        left: 0;
+        width: min(360px, 88vw);
+        max-height: none;
+        z-index: 50;
+        transform: translateX(-100%);
+        transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+        box-shadow: 12px 0 32px rgba(0, 0, 0, 0.6);
+        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      /* Prevent iOS Safari auto-zoom on form focus */
+      input[type="number"],
+      select {
+        font-size: 16px;
+        min-height: 42px;
+      }
+      .btn,
+      .segmented button {
+        min-height: 40px;
+      }
+      .canvas-toolbar {
+        top: 8px;
+        right: 8px;
+        left: 8px;
+        justify-content: space-between;
+        padding: 4px 6px;
+      }
+      .canvas-toolbar select {
+        font-size: 13px;
+        min-height: 34px;
+        max-width: 145px;
+      }
+      .canvas-toolbar .btn {
+        min-height: 34px;
+      }
+      .stage-bar {
+        padding: 0 10px;
+        height: 38px;
+      }
+      .stage-hint {
+        height: auto;
+        min-height: 28px;
+        padding: 4px 10px calc(4px + env(safe-area-inset-bottom, 0px));
+        font-size: 11px;
+      }
+      .stage-hint span:last-child {
+        display: none;
+      }
+      .nudge-bar {
+        bottom: 10px;
+        padding: 5px 8px;
+        gap: 4px;
+      }
+      .nudge-bar .btn {
+        min-height: 36px;
+        padding: 4px 9px;
       }
     }
   </style>
@@ -585,20 +774,35 @@
     <!-- Top Header -->
     <header class="topbar">
       <div class="brand">
+        <button type="button" class="btn btn-sm mobile-only" id="btnMobileSettings" aria-label="Toggle Settings Drawer">&#9776; Settings</button>
         <div class="brand-icon" aria-hidden="true">#</div>
         <span class="brand-title">Stencil &amp; Print Image Splitter</span>
         <span class="brand-badge">100% Offline</span>
       </div>
       <div class="topbar-actions">
-        <button type="button" class="btn btn-sm" id="btnSample">Load Sample Stencil</button>
-        <button type="button" class="btn btn-primary" id="btnExportPdf" disabled>Export Print-Ready PDF</button>
+        <button type="button" class="btn btn-sm" id="btnSample">
+          <span class="btn-label-full">Load Sample Stencil</span>
+          <span class="btn-label-short">Sample</span>
+        </button>
+        <button type="button" class="btn btn-sm" id="btnSharePdf" style="display: none;" disabled>Share PDF</button>
+        <button type="button" class="btn btn-primary" id="btnExportPdf" disabled>
+          <span class="btn-label-full">Export Print-Ready PDF</span>
+          <span class="btn-label-short">Export PDF</span>
+        </button>
       </div>
     </header>
 
     <!-- Main Workspace -->
     <div class="workspace">
-      <!-- Left Controls Sidebar -->
-      <aside class="sidebar">
+      <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+      <!-- Left Controls Sidebar (Collapsible Drawer on Mobile) -->
+      <aside class="sidebar" id="sidebar">
+        <div class="mobile-drawer-header">
+          <span class="mobile-drawer-title">Design &amp; Print Settings</span>
+          <button type="button" class="btn btn-sm" id="btnCloseDrawer">Done &times;</button>
+        </div>
+
         <!-- 1. Image Upload -->
         <section class="section-card">
           <div class="section-header">
@@ -848,10 +1052,20 @@
             <button type="button" class="btn btn-sm" id="btnZoomFit" title="Reset Zoom &amp; Pan" style="padding: 3px 8px;">Fit</button>
           </div>
           <canvas id="previewCanvas"></canvas>
+
+          <!-- Floating On-Screen Split Nudge Bar -->
+          <div class="nudge-bar" id="nudgeBar" role="toolbar" aria-label="Selected Split Controls">
+            <span class="nudge-info" id="nudgeInfo">V #1</span>
+            <button type="button" class="btn btn-sm" id="btnNudgePrev" title="Nudge Back">&lsaquo;</button>
+            <button type="button" class="btn btn-sm" id="btnNudgeNext" title="Nudge Forward">&rsaquo;</button>
+            <button type="button" class="btn btn-sm" id="btnNudgeStep" title="Toggle Fine / Coarse Step">1&times;</button>
+            <button type="button" class="btn btn-sm btn-danger" id="btnNudgeRemove" title="Remove Split">Remove</button>
+            <button type="button" class="btn btn-sm" id="btnNudgeClose" title="Deselect">&times;</button>
+          </div>
         </div>
 
         <div class="stage-hint">
-          <span>Scroll to zoom &bull; Drag empty space to pan &bull; Top-left checkboxes = Include/skip page</span>
+          <span>Pinch or scroll to zoom &bull; Drag empty space to pan &bull; Top-left checkboxes = Include/skip page</span>
           <span>Selected split: <strong>Arrow Keys</strong> nudge (Shift = 5&times;) &bull; <strong>Delete</strong> removes</span>
         </div>
       </main>
@@ -938,6 +1152,10 @@
         tileCheckboxes: [],
         dragging: null,
         panning: null,
+        pinch: null,
+        nudgeFast: false,
+        drawerOpen: false,
+        canNativeShare: false,
         layout: null
       };
 
@@ -945,10 +1163,16 @@
          DOM REFERENCES
          ======================================================================= */
       const els = {
+        sidebar: document.getElementById("sidebar"),
+        drawerBackdrop: document.getElementById("drawerBackdrop"),
+        btnMobileSettings: document.getElementById("btnMobileSettings"),
+        btnCloseDrawer: document.getElementById("btnCloseDrawer"),
+
         dropzone: document.getElementById("dropzone"),
         fileInput: document.getElementById("fileInput"),
         imgMeta: document.getElementById("imgMeta"),
         btnSample: document.getElementById("btnSample"),
+        btnSharePdf: document.getElementById("btnSharePdf"),
         btnExportPdf: document.getElementById("btnExportPdf"),
 
         prepStatus: document.getElementById("prepStatus"),
@@ -967,6 +1191,14 @@
         inputWidth: document.getElementById("inputWidth"),
         inputHeight: document.getElementById("inputHeight"),
         toggleAspect: document.getElementById("toggleAspect"),
+
+        nudgeBar: document.getElementById("nudgeBar"),
+        nudgeInfo: document.getElementById("nudgeInfo"),
+        btnNudgePrev: document.getElementById("btnNudgePrev"),
+        btnNudgeNext: document.getElementById("btnNudgeNext"),
+        btnNudgeStep: document.getElementById("btnNudgeStep"),
+        btnNudgeRemove: document.getElementById("btnNudgeRemove"),
+        btnNudgeClose: document.getElementById("btnNudgeClose"),
 
         selectPaper: document.getElementById("selectPaper"),
         orientPortrait: document.getElementById("orientPortrait"),
@@ -1087,6 +1319,28 @@
       /* =======================================================================
          UTILITY FUNCTIONS
          ======================================================================= */
+      function isCoarsePointer() {
+        return Boolean(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+      }
+
+      function setDrawerOpen(open) {
+        state.drawerOpen = Boolean(open);
+        els.sidebar.classList.toggle("open", state.drawerOpen);
+        els.drawerBackdrop.classList.toggle("open", state.drawerOpen);
+      }
+
+      function detectNativePdfShare() {
+        try {
+          if (typeof navigator !== "undefined" && typeof navigator.share === "function" && typeof navigator.canShare === "function") {
+            const testFile = new File(["%PDF-1.4"], "test.pdf", { type: "application/pdf" });
+            state.canNativeShare = Boolean(navigator.canShare({ files: [testFile] }));
+          }
+        } catch (err) {
+          state.canNativeShare = false;
+        }
+        els.btnSharePdf.style.display = state.canNativeShare ? "inline-flex" : "none";
+      }
+
       function showToast(message, type = "info") {
         const el = document.createElement("div");
         el.className = `toast ${type}`;
@@ -1198,12 +1452,10 @@
         if (splits.length < minSplitsNeeded) {
           splits = computeEvenSplits(total, maxCore, maxLast);
         } else if (splits.length > 0) {
-          // Verify feasibility of current split positions; if any tile exceeds max, clamp or rebalance
           const n = splits.length;
-          // Forward pass: keep within [prev + MIN_TILE_IN, prev + maxCore]
           for (let i = 0; i < n; i++) {
             const prev = i === 0 ? 0 : splits[i - 1];
-            const remTilesAfter = n - i; // includes last tile
+            const remTilesAfter = n - i;
             const maxRemainingCapacity = (remTilesAfter - 1) * maxCore + maxLast;
             const minAllowed = Math.max(prev + MIN_TILE_IN, total - maxRemainingCapacity);
             const maxAllowed = Math.min(prev + maxCore, total - remTilesAfter * MIN_TILE_IN);
@@ -1223,7 +1475,6 @@
         validateAxisSplits("v");
         validateAxisSplits("h");
 
-        // Prune out-of-range disabled tile keys
         const cols = state.vSplits.length + 1;
         const rows = state.hSplits.length + 1;
         for (const key of Array.from(state.disabledTiles)) {
@@ -1233,7 +1484,6 @@
           }
         }
 
-        // Prune invalid selected split
         if (state.selectedSplit) {
           const arr = state.selectedSplit.axis === "v" ? state.vSplits : state.hSplits;
           if (state.selectedSplit.index < 0 || state.selectedSplit.index >= arr.length) {
@@ -1279,7 +1529,6 @@
         const total = axis === "v" ? state.widthIn : state.heightIn;
         const edges = [0, ...splits, total];
 
-        // Find the widest existing tile segment to bisect
         let bestIdx = 0;
         let bestSpan = 0;
         for (let i = 0; i < edges.length - 1; i++) {
@@ -1572,6 +1821,11 @@
         state.heightIn = Math.max(0.5, Number((defaultW * ratio).toFixed(2)));
 
         els.btnExportPdf.disabled = false;
+        els.btnSharePdf.disabled = false;
+
+        if (window.innerWidth <= 860) {
+          setDrawerOpen(false);
+        }
 
         resetEvenSplits();
         showToast("Design loaded! Drag the cyan split lines to avoid cutting fine details.", "success");
@@ -1682,7 +1936,6 @@
         els.splitCounts.textContent = `${state.vSplits.length}V / ${state.hSplits.length}H`;
         els.btnRemoveSelected.disabled = !state.selectedSplit;
 
-        // Prep status & filter threshold UI
         els.prepStatus.textContent = `${state.rotation}°${state.mirrorX ? " • Mirrored" : ""}${state.trimmed ? " • Trimmed" : ""}`;
         els.btnTrim.textContent = state.trimmed ? "Undo Trim" : "Trim Whitespace";
         const showSlider = state.filterMode === "threshold" || state.filterMode === "edges";
@@ -1718,8 +1971,16 @@
           const { axis, index } = state.selectedSplit;
           const pos = axis === "v" ? state.vSplits[index] : state.hSplits[index];
           els.statSelected.textContent = `${axis === "v" ? "Vertical" : "Horizontal"} #${index + 1} @ ${formatDim(pos)}`;
+
+          els.nudgeBar.classList.add("visible");
+          els.nudgeInfo.textContent = `${axis === "v" ? "V" : "H"} #${index + 1} • ${formatDim(pos)}`;
+          els.btnNudgePrev.innerHTML = axis === "v" ? "&#9664;" : "&#9650;";
+          els.btnNudgeNext.innerHTML = axis === "v" ? "&#9654;" : "&#9660;";
+          els.btnNudgeStep.textContent = state.nudgeFast ? "5×" : "1×";
+          els.btnNudgeStep.classList.toggle("active-step", state.nudgeFast);
         } else {
           els.statSelected.textContent = "None";
+          els.nudgeBar.classList.remove("visible");
         }
       }
 
@@ -1733,6 +1994,20 @@
         els.canvas.height = Math.max(1, Math.floor(rect.height * dpr));
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         drawPreview();
+      }
+
+      function drawRoundedRectPath(x, y, w, h, r) {
+        if (typeof ctx.roundRect === "function") {
+          ctx.roundRect(x, y, w, h, r);
+          return;
+        }
+        const rad = Math.min(r, w / 2, h / 2);
+        ctx.moveTo(x + rad, y);
+        ctx.arcTo(x + w, y, x + w, y + h, rad);
+        ctx.arcTo(x + w, y + h, x, y + h, rad);
+        ctx.arcTo(x, y + h, x, y, rad);
+        ctx.arcTo(x, y, x + w, y, rad);
+        ctx.closePath();
       }
 
       function drawPreview() {
@@ -1860,7 +2135,6 @@
             }
 
             if (state.showMarks && !isDisabled) {
-              // Corner crosshairs (+)
               const arm = Math.min(7, tw * 0.12, th * 0.12);
               const corners = [
                 [tx, ty],
@@ -1881,7 +2155,6 @@
               });
               ctx.restore();
 
-              // Bottom-right Grid ID badge preview
               if (tw > 34 && th > 24) {
                 const label = getGridLabel(r, col);
                 ctx.save();
@@ -1904,9 +2177,8 @@
               }
             }
 
-            // Interactive top-left Include/Skip Checkbox (UI-only, never prints)
             if (tw > 22 && th > 22) {
-              const cbSize = 17;
+              const cbSize = isCoarsePointer() ? 22 : 17;
               const cbX = tx + 6;
               const cbY = ty + 6;
               state.tileCheckboxes.push({ key, x: cbX, y: cbY, size: cbSize });
@@ -1917,19 +2189,20 @@
               ctx.strokeStyle = isHovered ? "#ffffff" : (isDisabled ? "#94a3b8" : "#0284c7");
               ctx.lineWidth = isHovered ? 2 : 1.25;
               ctx.beginPath();
-              ctx.roundRect(cbX, cbY, cbSize, cbSize, 4);
+              drawRoundedRectPath(cbX, cbY, cbSize, cbSize, 4);
               ctx.fill();
               ctx.stroke();
 
               if (!isDisabled) {
+                const s = cbSize / 17;
                 ctx.strokeStyle = "#082f49";
-                ctx.lineWidth = 2.2;
+                ctx.lineWidth = 2.2 * s;
                 ctx.lineCap = "round";
                 ctx.lineJoin = "round";
                 ctx.beginPath();
-                ctx.moveTo(cbX + 4, cbY + 8.5);
-                ctx.lineTo(cbX + 7.5, cbY + 12);
-                ctx.lineTo(cbX + 13, cbY + 5.2);
+                ctx.moveTo(cbX + 4 * s, cbY + 8.5 * s);
+                ctx.lineTo(cbX + 7.5 * s, cbY + 12 * s);
+                ctx.lineTo(cbX + 13 * s, cbY + 5.2 * s);
                 ctx.stroke();
               }
               ctx.restore();
@@ -1938,6 +2211,7 @@
         }
 
         // 3. Interactive Split Lines
+        const coarse = isCoarsePointer();
         const drawSplitLine = (axis, posIn, idx) => {
           const isSelected = state.selectedSplit && state.selectedSplit.axis === axis && state.selectedSplit.index === idx;
           const isHovered = state.hoverSplit && state.hoverSplit.axis === axis && state.hoverSplit.index === idx;
@@ -1954,11 +2228,12 @@
             ctx.lineTo(x, originY + drawH + 8);
             ctx.stroke();
 
-            // Drag handle pill at top
+            const hw = coarse ? 26 : 20;
+            const hh = coarse ? 18 : 14;
             ctx.setLineDash([]);
             ctx.fillStyle = isSelected ? "#f59e0b" : "#0ea5e9";
             ctx.beginPath();
-            ctx.roundRect(x - 10, originY - 18, 20, 14, 4);
+            drawRoundedRectPath(x - hw / 2, originY - hh - 4, hw, hh, 5);
             ctx.fill();
           } else {
             const y = originY + posIn * scale;
@@ -1966,11 +2241,12 @@
             ctx.lineTo(originX + drawW + 8, y);
             ctx.stroke();
 
-            // Drag handle pill at left
+            const hw = coarse ? 18 : 14;
+            const hh = coarse ? 26 : 20;
             ctx.setLineDash([]);
             ctx.fillStyle = isSelected ? "#f59e0b" : "#0ea5e9";
             ctx.beginPath();
-            ctx.roundRect(originX - 18, y - 10, 14, 20, 4);
+            drawRoundedRectPath(originX - hw - 4, y - hh / 2, hw, hh, 5);
             ctx.fill();
           }
           ctx.restore();
@@ -2014,7 +2290,7 @@
         ctx.beginPath();
 
         if (garment.type === "tote") {
-          ctx.roundRect(left, top, gw, gh, 6);
+          drawRoundedRectPath(left, top, gw, gh, 6);
           const handleW = gw * 0.42;
           const handleH = gh * 0.22;
           ctx.moveTo(cx - handleW / 2, top);
@@ -2060,7 +2336,6 @@
 
       function drawRulers(originX, originY, drawW, drawH, scale) {
         const stepUnits = state.unit === "cm" ? 5 : 2;
-        const stepIn = fromDisplayUnit(stepUnits);
         const totalWUnits = toDisplayUnit(state.widthIn);
         const totalHUnits = toDisplayUnit(state.heightIn);
 
@@ -2070,7 +2345,6 @@
         ctx.font = "10.5px monospace";
         ctx.lineWidth = 1;
 
-        // Top horizontal ruler
         const topY = originY - 22;
         ctx.beginPath();
         ctx.moveTo(originX, topY);
@@ -2089,7 +2363,6 @@
           ctx.fillText(`${u}`, x, topY - 2);
         }
 
-        // Left vertical ruler
         const leftX = originX - 24;
         ctx.beginPath();
         ctx.moveTo(leftX, originY);
@@ -2112,7 +2385,7 @@
       }
 
       /* =======================================================================
-         POINTER, ZOOM & PAN INTERACTIONS
+         POINTER, TOUCH PINCH-ZOOM & PAN INTERACTIONS
          ======================================================================= */
       function getCanvasPoint(evt) {
         const rect = els.canvas.getBoundingClientRect();
@@ -2124,27 +2397,41 @@
         };
       }
 
-      function hitTestCheckbox(px, py) {
+      function getTouchMetrics(touches) {
+        const rect = els.canvas.getBoundingClientRect();
+        const x1 = touches[0].clientX - rect.left;
+        const y1 = touches[0].clientY - rect.top;
+        const x2 = touches[1].clientX - rect.left;
+        const y2 = touches[1].clientY - rect.top;
+        return {
+          dist: Math.hypot(x2 - x1, y2 - y1),
+          midX: (x1 + x2) / 2,
+          midY: (y1 + y2) / 2
+        };
+      }
+
+      function hitTestCheckbox(px, py, isTouch = false) {
+        const pad = isTouch || isCoarsePointer() ? 10 : 3;
         for (const cb of state.tileCheckboxes) {
-          if (px >= cb.x - 3 && px <= cb.x + cb.size + 3 && py >= cb.y - 3 && py <= cb.y + cb.size + 3) {
+          if (px >= cb.x - pad && px <= cb.x + cb.size + pad && py >= cb.y - pad && py <= cb.y + cb.size + pad) {
             return cb;
           }
         }
         return null;
       }
 
-      function hitTestSplit(px, py) {
+      function hitTestSplit(px, py, isTouch = false) {
         if (!state.layout) return null;
         const { originX, originY, drawW, drawH, scale } = state.layout;
-        const tol = 10;
+        const tol = isTouch || isCoarsePointer() ? 24 : 10;
 
-        if (py >= originY - 22 && py <= originY + drawH + 12) {
+        if (py >= originY - 28 && py <= originY + drawH + 16) {
           for (let i = 0; i < state.vSplits.length; i++) {
             const x = originX + state.vSplits[i] * scale;
             if (Math.abs(px - x) <= tol) return { axis: "v", index: i };
           }
         }
-        if (px >= originX - 22 && px <= originX + drawW + 12) {
+        if (px >= originX - 28 && px <= originX + drawW + 16) {
           for (let i = 0; i < state.hSplits.length; i++) {
             const y = originY + state.hSplits[i] * scale;
             if (Math.abs(py - y) <= tol) return { axis: "h", index: i };
@@ -2153,12 +2440,24 @@
         return null;
       }
 
-      function onPointerDown(evt) {
+      function nudgeSelectedSplit(direction, fastOverride) {
+        if (!state.selectedSplit) return;
+        const { axis, index } = state.selectedSplit;
+        const baseStepIn = state.unit === "cm" ? 0.1 / CM_PER_INCH : 0.05;
+        const isFast = typeof fastOverride === "boolean" ? fastOverride : state.nudgeFast;
+        const step = isFast ? baseStepIn * 5 : baseStepIn;
+        const splits = axis === "v" ? state.vSplits : state.hSplits;
+        const bounds = getSplitDragBounds(axis, index);
+        splits[index] = Math.max(bounds.min, Math.min(bounds.max, splits[index] + direction * step));
+        updateUI();
+        drawPreview();
+      }
+
+      function onPointerDown(evt, isTouch = false) {
         if (!state.image || !state.layout) return;
         const pt = getCanvasPoint(evt);
 
-        // 1. Check tile include/skip checkbox first
-        const cbHit = hitTestCheckbox(pt.x, pt.y);
+        const cbHit = hitTestCheckbox(pt.x, pt.y, isTouch);
         if (cbHit) {
           evt.preventDefault();
           if (state.disabledTiles.has(cbHit.key)) {
@@ -2171,8 +2470,7 @@
           return;
         }
 
-        // 2. Check split lines
-        const hit = hitTestSplit(pt.x, pt.y);
+        const hit = hitTestSplit(pt.x, pt.y, isTouch);
         if (hit) {
           evt.preventDefault();
           state.selectedSplit = hit;
@@ -2199,6 +2497,60 @@
           };
           els.canvas.style.cursor = "grabbing";
           drawPreview();
+        }
+      }
+
+      function onTouchStart(evt) {
+        if (!state.image || !state.layout) return;
+        if (evt.touches.length === 2) {
+          evt.preventDefault();
+          state.dragging = null;
+          state.panning = null;
+          const m = getTouchMetrics(evt.touches);
+          state.pinch = {
+            startDist: Math.max(10, m.dist),
+            startMidX: m.midX,
+            startMidY: m.midY,
+            startZoom: state.zoom,
+            startPanX: state.panX,
+            startPanY: state.panY
+          };
+          return;
+        }
+        if (evt.touches.length === 1) {
+          onPointerDown(evt, true);
+        }
+      }
+
+      function onTouchMove(evt) {
+        if (!state.image || !state.layout) return;
+        if (evt.touches.length === 2 && state.pinch) {
+          evt.preventDefault();
+          const m = getTouchMetrics(evt.touches);
+          const nextZoom = Math.max(0.5, Math.min(5.0, state.pinch.startZoom * (m.dist / state.pinch.startDist)));
+          const ratio = nextZoom / state.pinch.startZoom;
+          const dpr = window.devicePixelRatio || 1;
+          const cx = els.canvas.width / dpr / 2;
+          const cy = els.canvas.height / dpr / 2;
+
+          state.zoom = nextZoom;
+          state.panX = (m.midX - cx) - ((state.pinch.startMidX - cx) - state.pinch.startPanX) * ratio;
+          state.panY = (m.midY - cy) - ((state.pinch.startMidY - cy) - state.pinch.startPanY) * ratio;
+          updateUI();
+          drawPreview();
+          return;
+        }
+        if (evt.touches.length === 1 && !state.pinch) {
+          onPointerMove(evt);
+        }
+      }
+
+      function onTouchEnd(evt) {
+        if (evt.touches.length < 2 && state.pinch) {
+          state.pinch = null;
+        }
+        if (evt.touches.length === 0) {
+          onPointerUp();
         }
       }
 
@@ -2307,7 +2659,7 @@
       function buildPdfDocument(pagesData, pageWPt, pageHPt) {
         const chunks = [];
         let byteOffset = 0;
-        const offsets = [0]; // Index 0 is free object 0
+        const offsets = [0];
 
         const pushBytes = (arr) => {
           chunks.push(arr);
@@ -2344,7 +2696,6 @@
           const imgObjId = pageObjId + 1;
           const contentObjId = pageObjId + 2;
 
-          // Page Object
           offsets[pageObjId] = byteOffset;
           pushStr(
             `${pageObjId} 0 obj\n` +
@@ -2353,7 +2704,6 @@
             `/Contents ${contentObjId} 0 R >>\nendobj\n`
           );
 
-          // Image XObject (DCTDecode / JPEG)
           offsets[imgObjId] = byteOffset;
           pushStr(
             `${imgObjId} 0 obj\n` +
@@ -2363,7 +2713,6 @@
           pushBytes(p.jpegBytes);
           pushStr("\nendstream\nendobj\n");
 
-          // Content Stream Object
           const contentBytes = asciiBytes(p.contentStream);
           offsets[contentObjId] = byteOffset;
           pushStr(`${contentObjId} 0 obj\n<< /Length ${contentBytes.length} >>\nstream\n`);
@@ -2371,7 +2720,6 @@
           pushStr("\nendstream\nendobj\n");
         });
 
-        // Cross-reference table
         const xrefOffset = byteOffset;
         const totalObjs = offsets.length;
         pushStr(`xref\n0 ${totalObjs}\n0000000000 65535 f \n`);
@@ -2380,7 +2728,6 @@
           pushStr(`${offStr} 00000 n \n`);
         }
 
-        // Trailer
         pushStr(
           `trailer\n<< /Size ${totalObjs} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`
         );
@@ -2388,7 +2735,7 @@
         return new Blob(chunks, { type: "application/pdf" });
       }
 
-      function exportToPdf() {
+      function exportToPdf(mode = "download") {
         if (!state.image) return;
 
         const colsCheck = state.vSplits.length + 1;
@@ -2400,7 +2747,9 @@
         }
 
         els.btnExportPdf.disabled = true;
-        els.btnExportPdf.textContent = "Generating PDF…";
+        els.btnSharePdf.disabled = true;
+        const prevExportHtml = els.btnExportPdf.innerHTML;
+        els.btnExportPdf.textContent = "Generating…";
 
         setTimeout(() => {
           try {
@@ -2543,7 +2892,6 @@
                 const rightOverlapIn = col < cols - 1 ? c.overlap : 0;
                 const bottomOverlapIn = r < rows - 1 ? c.overlap : 0;
 
-                // Render ONLY the exact core split image so design never exceeds the alignment crosshairs
                 const srcX = (x0In / state.widthIn) * state.natW;
                 const srcY = (y0In / state.heightIn) * state.natH;
                 const srcW = (coreWIn / state.widthIn) * state.natW;
@@ -2564,7 +2912,6 @@
                   tileCanvas.toDataURL("image/jpeg", jpegQuality).split(",")[1]
                 );
 
-                // PDF coordinates (origin bottom-left)
                 const coreWPt = coreWIn * 72;
                 const coreHPt = coreHIn * 72;
                 const totalWPt = (coreWIn + rightOverlapIn) * 72;
@@ -2673,7 +3020,6 @@
                     ops.push(`${cxp.toFixed(3)} ${(cyp - arm).toFixed(3)} m ${cxp.toFixed(3)} ${(cyp + arm).toFixed(3)} l S`);
                   });
 
-                  // Grid ID anchored to bottom-right corner of the printer page (off the artwork)
                   const label = getGridLabel(r, col);
                   const safeEdgePt = Math.max(marginPt, 14);
                   const boxW = Math.max(28, label.length * 8 + 14);
@@ -2704,24 +3050,44 @@
             }
 
             const pdfBlob = buildPdfDocument(pagesData, pageWPt, pageHPt);
-            const url = URL.createObjectURL(pdfBlob);
-            const a = document.createElement("a");
-            a.href = url;
             const suffix = state.compressEmail ? "-email" : "-print";
-            a.download = `${state.imageName}-${cols}x${rows}${suffix}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 5000);
-
+            const fileName = `${state.imageName}-${cols}x${rows}${suffix}.pdf`;
             const kb = (pdfBlob.size / 1024).toFixed(0);
-            showToast(`Exported ${pagesData.length}-page PDF (${kb} KB). Print at 100% / Actual Size!`, "success");
+
+            const triggerDownload = () => {
+              const url = URL.createObjectURL(pdfBlob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = fileName;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              setTimeout(() => URL.revokeObjectURL(url), 5000);
+              showToast(`Exported ${pagesData.length}-page PDF (${kb} KB). Print at 100% / Actual Size!`, "success");
+            };
+
+            if (mode === "share" && state.canNativeShare) {
+              const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+              navigator.share({
+                files: [pdfFile],
+                title: `Stencil PDF (${cols}×${rows})`,
+                text: `${pagesData.length}-page print-ready stencil PDF (${formatDim(state.widthIn)} × ${formatDim(state.heightIn)}). Print at 100% Actual Size.`
+              }).then(() => {
+                showToast(`Shared ${pagesData.length}-page PDF (${kb} KB).`, "success");
+              }).catch((shareErr) => {
+                if (shareErr && shareErr.name === "AbortError") return;
+                triggerDownload();
+              });
+            } else {
+              triggerDownload();
+            }
           } catch (err) {
             console.error(err);
             showToast("Failed to generate PDF: " + err.message, "error");
           } finally {
             els.btnExportPdf.disabled = false;
-            els.btnExportPdf.textContent = "Export Print-Ready PDF";
+            els.btnSharePdf.disabled = false;
+            els.btnExportPdf.innerHTML = prevExportHtml;
           }
         }, 30);
       }
@@ -2729,6 +3095,25 @@
       /* =======================================================================
          EVENT LISTENERS
          ======================================================================= */
+      // Mobile Settings Drawer
+      els.btnMobileSettings.addEventListener("click", () => setDrawerOpen(!state.drawerOpen));
+      els.btnCloseDrawer.addEventListener("click", () => setDrawerOpen(false));
+      els.drawerBackdrop.addEventListener("click", () => setDrawerOpen(false));
+
+      // Floating On-Screen Split Nudge Bar
+      els.btnNudgePrev.addEventListener("click", () => nudgeSelectedSplit(-1));
+      els.btnNudgeNext.addEventListener("click", () => nudgeSelectedSplit(1));
+      els.btnNudgeStep.addEventListener("click", () => {
+        state.nudgeFast = !state.nudgeFast;
+        updateUI();
+      });
+      els.btnNudgeRemove.addEventListener("click", removeSelectedSplit);
+      els.btnNudgeClose.addEventListener("click", () => {
+        state.selectedSplit = null;
+        updateUI();
+        drawPreview();
+      });
+
       // Upload Dropzone
       els.dropzone.addEventListener("click", () => els.fileInput.click());
       els.dropzone.addEventListener("keydown", (e) => {
@@ -2757,7 +3142,8 @@
       });
 
       els.btnSample.addEventListener("click", generateSampleStencil);
-      els.btnExportPdf.addEventListener("click", exportToPdf);
+      els.btnExportPdf.addEventListener("click", () => exportToPdf("download"));
+      els.btnSharePdf.addEventListener("click", () => exportToPdf("share"));
 
       // Stencil Prep & Filters
       els.btnRotate.addEventListener("click", () => {
@@ -2974,16 +3360,21 @@
       }, { passive: false });
 
       // Canvas Mouse & Touch Events
-      els.canvas.addEventListener("mousedown", onPointerDown);
+      els.canvas.addEventListener("mousedown", (e) => onPointerDown(e, false));
       window.addEventListener("mousemove", onPointerMove);
       window.addEventListener("mouseup", onPointerUp);
 
-      els.canvas.addEventListener("touchstart", onPointerDown, { passive: false });
-      window.addEventListener("touchmove", onPointerMove, { passive: false });
-      window.addEventListener("touchend", onPointerUp);
+      els.canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+      window.addEventListener("touchmove", onTouchMove, { passive: false });
+      window.addEventListener("touchend", onTouchEnd);
+      window.addEventListener("touchcancel", onTouchEnd);
 
       // Keyboard Delete & Arrow-Key Nudge for Selected Split
       window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && state.drawerOpen) {
+          setDrawerOpen(false);
+          return;
+        }
         if (!state.selectedSplit) return;
         const tag = document.activeElement && document.activeElement.tagName;
         if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
@@ -2994,30 +3385,30 @@
           return;
         }
 
-        const { axis, index } = state.selectedSplit;
-        const baseStepIn = state.unit === "cm" ? 0.1 / CM_PER_INCH : 0.05;
-        const step = e.shiftKey ? baseStepIn * 5 : baseStepIn;
-        let delta = 0;
+        const { axis } = state.selectedSplit;
+        let dir = 0;
 
-        if (axis === "v" && e.key === "ArrowLeft") delta = -step;
-        else if (axis === "v" && e.key === "ArrowRight") delta = step;
-        else if (axis === "h" && e.key === "ArrowUp") delta = -step;
-        else if (axis === "h" && e.key === "ArrowDown") delta = step;
+        if (axis === "v" && e.key === "ArrowLeft") dir = -1;
+        else if (axis === "v" && e.key === "ArrowRight") dir = 1;
+        else if (axis === "h" && e.key === "ArrowUp") dir = -1;
+        else if (axis === "h" && e.key === "ArrowDown") dir = 1;
 
-        if (delta !== 0) {
+        if (dir !== 0) {
           e.preventDefault();
-          const splits = axis === "v" ? state.vSplits : state.hSplits;
-          const bounds = getSplitDragBounds(axis, index);
-          splits[index] = Math.max(bounds.min, Math.min(bounds.max, splits[index] + delta));
-          updateUI();
-          drawPreview();
+          nudgeSelectedSplit(dir, e.shiftKey);
         }
       });
 
       // Responsive Canvas Resize
-      window.addEventListener("resize", resizeCanvas);
+      window.addEventListener("resize", () => {
+        if (window.innerWidth > 860 && state.drawerOpen) {
+          setDrawerOpen(false);
+        }
+        resizeCanvas();
+      });
 
       // Initial Boot
+      detectNativePdfShare();
       loadSettings();
       updateUI();
       resizeCanvas();
