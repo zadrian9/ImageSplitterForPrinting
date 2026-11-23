@@ -1,0 +1,3027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stencil &amp; Print Image Splitter — Offline Edition</title>
+  <style>
+    /* =========================================================================
+       DESIGN TOKENS & RESET
+       ========================================================================= */
+    :root {
+      --bg-app: #0b1120;
+      --bg-panel: #111827;
+      --bg-card: #172033;
+      --bg-input: #0f172a;
+      --bg-hover: #1e293b;
+      --border: #263349;
+      --border-strong: #334155;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --accent-glow: rgba(56, 189, 248, 0.25);
+      --amber: #f59e0b;
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.14);
+      --success: #10b981;
+      --radius: 10px;
+      --radius-sm: 6px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg-app);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 13.5px;
+      line-height: 1.45;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* =========================================================================
+       APP SHELL LAYOUT
+       ========================================================================= */
+    .app-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    .topbar {
+      height: 54px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      display: grid;
+      place-items: center;
+      color: #082f49;
+      font-weight: 800;
+      font-size: 14px;
+      box-shadow: 0 2px 10px rgba(56, 189, 248, 0.35);
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-badge {
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.14);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .workspace {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* =========================================================================
+       LEFT SIDEBAR CONTROLS
+       ========================================================================= */
+    .sidebar {
+      width: 344px;
+      flex-shrink: 0;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sidebar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .sidebar::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border-radius: 3px;
+    }
+
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .section-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+    }
+
+    /* Form Controls */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      padding: 7px 9px;
+      font-size: 13px;
+      font-family: var(--font-sans);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input[type="number"]:focus,
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+
+    /* Segmented Toggle */
+    .segmented {
+      display: inline-flex;
+      background: var(--bg-input);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .segmented button {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .segmented button.active {
+      background: var(--accent);
+      color: #082f49;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 13px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
+      background: var(--bg-hover);
+      color: var(--text-main);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: #283548;
+      border-color: #475569;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #082f49;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .btn-danger {
+      background: var(--danger-bg);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: var(--danger);
+    }
+
+    .btn-sm {
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-row .btn {
+      flex: 1;
+    }
+
+    /* Range Slider for Filter Threshold */
+    .range-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .range-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    /* Dropzone */
+    .dropzone {
+      border: 1.5px dashed var(--border-strong);
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      padding: 16px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .dropzone:hover,
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .dropzone-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text-main);
+    }
+
+    .dropzone-sub {
+      font-size: 11.5px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    /* Toggle Switch Rows */
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .switch-label {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .switch-label strong {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .switch-label span {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 38px;
+      height: 21px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--bg-input);
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      transition: 0.2s;
+    }
+
+    .toggle-slider::before {
+      content: "";
+      position: absolute;
+      width: 15px;
+      height: 15px;
+      left: 2px;
+      top: 2px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(17px);
+      background: #082f49;
+    }
+
+    .info-note {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      line-height: 1.4;
+    }
+
+    /* =========================================================================
+       RIGHT PREVIEW STAGE
+       ========================================================================= */
+    .stage {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: radial-gradient(circle at center, #131c31 0%, #090e1a 100%);
+    }
+
+    .stage-bar {
+      height: 40px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: rgba(17, 24, 39, 0.85);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+      gap: 12px;
+      overflow-x: auto;
+    }
+
+    .stat-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      white-space: nowrap;
+    }
+
+    .stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stat-pill strong {
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #previewCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    /* Floating Canvas Zoom & Garment Toolbar */
+    .canvas-toolbar {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      padding: 4px 6px;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    }
+
+    .canvas-toolbar select {
+      padding: 4px 8px;
+      font-size: 11.5px;
+      width: auto;
+      background: var(--bg-panel);
+    }
+
+    .zoom-readout {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-muted);
+      min-width: 40px;
+      text-align: center;
+    }
+
+    .stage-hint {
+      height: 30px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border);
+      font-size: 11.5px;
+      color: var(--text-dim);
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    /* Toast Notifications */
+    .toast-container {
+      position: fixed;
+      bottom: 42px;
+      right: 18px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: #1e293b;
+      color: var(--text-main);
+      border: 1px solid var(--border-strong);
+      border-left: 4px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 12.5px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      max-width: 340px;
+      animation: toastIn 0.2s ease-out;
+    }
+
+    .toast.success { border-left-color: var(--success); }
+    .toast.warn { border-left-color: var(--amber); }
+    .toast.error { border-left-color: var(--danger); }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 860px) {
+      .workspace {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        max-height: 44vh;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Header -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">#</div>
+        <span class="brand-title">Stencil &amp; Print Image Splitter</span>
+        <span class="brand-badge">100% Offline</span>
+      </div>
+      <div class="topbar-actions">
+        <button type="button" class="btn btn-sm" id="btnSample">Load Sample Stencil</button>
+        <button type="button" class="btn btn-primary" id="btnExportPdf" disabled>Export Print-Ready PDF</button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="workspace">
+      <!-- Left Controls Sidebar -->
+      <aside class="sidebar">
+        <!-- 1. Image Upload -->
+        <section class="section-card">
+          <div class="section-header">
+            <h2 class="section-title">1. Design Image</h2>
+            <span id="imgMeta" style="font-size: 11px; color: var(--text-muted);">No image loaded</span>
+          </div>
+          <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload design image">
+            <div class="dropzone-title">Click or Drop Image Here</div>
+            <div class="dropzone-sub">PNG, JPG, WebP, SVG &bull; Processed locally</div>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;" />
+          </div>
+        </section>
+
+        <!-- 2. Stencil Prep & Ink-Saver Filters -->
+        <section class="section-card">
+          <div class="section-header">
+            <h2 class="section-title">2. Stencil Prep &amp; Filters</h2>
+            <span id="prepStatus" style="font-size: 11px; color: var(--text-muted);">0&deg;</span>
+          </div>
+
+          <div class="btn-row">
+            <button type="button" class="btn btn-sm" id="btnRotate" disabled>Rotate 90&deg;</button>
+            <button type="button" class="btn btn-sm" id="btnTrim" disabled>Trim Whitespace</button>
+          </div>
+
+          <label class="switch-row">
+            <div class="switch-label">
+              <strong>Mirror / Flip Horizontal</strong>
+              <span>Reverse design for face-down transfers</span>
+            </div>
+            <div class="toggle-switch">
+              <input type="checkbox" id="toggleMirror" />
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+
+          <div class="field">
+            <label for="selectFilter">Ink-Saver / Stencil Mode</label>
+            <select id="selectFilter">
+              <option value="original" selected>Original Colors</option>
+              <option value="grayscale">Grayscale (Ink-Saver)</option>
+              <option value="threshold">B&amp;W High-Contrast Stencil</option>
+              <option value="edges">Outline / Edge-Only Cut Lines</option>
+            </select>
+          </div>
+
+          <div class="range-field" id="thresholdWrap" style="display: none;">
+            <div class="range-header">
+              <span id="thresholdLabel">B&amp;W Threshold</span>
+              <span id="thresholdVal" style="font-family: var(--font-mono);">128</span>
+            </div>
+            <input type="range" id="inputThreshold" min="15" max="240" value="128" />
+          </div>
+        </section>
+
+        <!-- 3. Physical Dimensions -->
+        <section class="section-card">
+          <div class="section-header">
+            <h2 class="section-title">3. Physical Size</h2>
+            <div class="segmented" role="group" aria-label="Units">
+              <button type="button" id="unitIn" class="active">in</button>
+              <button type="button" id="unitCm">cm</button>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="inputWidth">Width (<span class="unit-label">in</span>)</label>
+              <input type="number" id="inputWidth" min="0.5" max="200" step="0.1" value="14.00" />
+            </div>
+            <div class="field">
+              <label for="inputHeight">Height (<span class="unit-label">in</span>)</label>
+              <input type="number" id="inputHeight" min="0.5" max="200" step="0.1" value="18.00" />
+            </div>
+          </div>
+
+          <label class="switch-row">
+            <div class="switch-label">
+              <strong>Lock Aspect Ratio</strong>
+              <span>Prevent stretching your design</span>
+            </div>
+            <div class="toggle-switch">
+              <input type="checkbox" id="toggleAspect" checked />
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+        </section>
+
+        <!-- 4. Paper & Margins -->
+        <section class="section-card">
+          <div class="section-header">
+            <h2 class="section-title">4. Paper &amp; Margins</h2>
+            <div class="segmented" role="group" aria-label="Paper Orientation">
+              <button type="button" id="orientPortrait" class="active">Portrait</button>
+              <button type="button" id="orientLandscape">Landscape</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="selectPaper">Printer Paper Size</label>
+            <select id="selectPaper">
+              <option value="letter" selected>US Letter (8.5&Prime; &times; 11&Prime;)</option>
+              <option value="legal">US Legal (8.5&Prime; &times; 14&Prime;)</option>
+              <option value="tabloid">Tabloid / Ledger (11&Prime; &times; 17&Prime;)</option>
+              <option value="a4">A4 (210 &times; 297 mm)</option>
+              <option value="a3">A3 (297 &times; 420 mm)</option>
+            </select>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="inputPrinterMargin">Printer Margin (<span class="unit-label">in</span>)</label>
+              <input type="number" id="inputPrinterMargin" min="0" max="2" step="0.05" value="0.25" />
+            </div>
+            <div class="field">
+              <label for="inputOverlap">Tape Overlap (<span class="unit-label">in</span>)</label>
+              <input type="number" id="inputOverlap" min="0" max="2" step="0.05" value="0.25" />
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. Split Lines Control -->
+        <section class="section-card">
+          <div class="section-header">
+            <h2 class="section-title">5. Split Lines</h2>
+            <span id="splitCounts" style="font-size: 11px; color: var(--text-muted);">0V / 0H</span>
+          </div>
+
+          <div class="btn-row">
+            <button type="button" class="btn btn-sm" id="btnAddV">+ Vertical Split</button>
+            <button type="button" class="btn btn-sm" id="btnAddH">+ Horizontal Split</button>
+          </div>
+
+          <div class="btn-row">
+            <button type="button" class="btn btn-sm btn-danger" id="btnRemoveSelected" disabled>Remove Selected</button>
+            <button type="button" class="btn btn-sm" id="btnResetSplits">Auto-Even Splits</button>
+          </div>
+
+          <div class="btn-row">
+            <button type="button" class="btn btn-sm" id="btnSkipBlanks" disabled>Auto-Skip Blank Pages</button>
+          </div>
+
+          <div class="info-note">
+            <strong>Tip:</strong> Drag any cyan split line (or select &amp; nudge with <strong>Arrow Keys</strong>) to keep fine details away from seams. Lines auto-clamp to your paper.
+          </div>
+        </section>
+
+        <!-- 6. Print Marks & PDF Options -->
+        <section class="section-card">
+          <div class="section-header">
+            <h2 class="section-title">6. Print &amp; PDF Options</h2>
+          </div>
+
+          <label class="switch-row">
+            <div class="switch-label">
+              <strong>Thin Tile Border</strong>
+              <span>Hairline cut border around each split image</span>
+            </div>
+            <div class="toggle-switch">
+              <input type="checkbox" id="toggleBorder" checked />
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+
+          <label class="switch-row">
+            <div class="switch-label">
+              <strong>Alignment Marks &amp; Grid IDs</strong>
+              <span>Corner crosshairs (+) &amp; page bottom-right A1/B2</span>
+            </div>
+            <div class="toggle-switch">
+              <input type="checkbox" id="toggleMarks" checked />
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+
+          <label class="switch-row">
+            <div class="switch-label">
+              <strong>Overlap Tape Shading</strong>
+              <span>Faint hatch &amp; "TAPE OVERLAP" label on tabs</span>
+            </div>
+            <div class="toggle-switch">
+              <input type="checkbox" id="toggleOverlapHatch" checked />
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+
+          <label class="switch-row">
+            <div class="switch-label">
+              <strong>Scale Calibration Bar</strong>
+              <span>Print 1&Prime; / 5 cm verification ruler on Page 1</span>
+            </div>
+            <div class="toggle-switch">
+              <input type="checkbox" id="toggleCalibration" checked />
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+
+          <label class="switch-row">
+            <div class="switch-label">
+              <strong>Assembly Key Cover Page</strong>
+              <span>Add miniature grid map as Page 0 of PDF</span>
+            </div>
+            <div class="toggle-switch">
+              <input type="checkbox" id="toggleCoverPage" />
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+
+          <label class="switch-row">
+            <div class="switch-label">
+              <strong>Compress PDF for Email</strong>
+              <span>Smaller file size (150 DPI vs 300 DPI print)</span>
+            </div>
+            <div class="toggle-switch">
+              <input type="checkbox" id="toggleCompress" />
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+        </section>
+      </aside>
+
+      <!-- Right Live Preview Canvas -->
+      <main class="stage">
+        <div class="stage-bar">
+          <div class="stat-group">
+            <span class="stat-pill">Pages: <strong id="statPages">0</strong></span>
+            <button type="button" class="btn btn-sm" id="btnEnableAll" style="display: none; padding: 3px 8px; font-size: 11px;">Enable All Pages</button>
+            <span class="stat-pill">Max Tile: <strong id="statPrintable">—</strong></span>
+            <span class="stat-pill">Effective DPI: <strong id="statDpi">—</strong></span>
+          </div>
+          <div class="stat-group">
+            <span class="stat-pill">Selected Split: <strong id="statSelected">None</strong></span>
+          </div>
+        </div>
+
+        <div class="canvas-wrap" id="canvasWrap">
+          <div class="canvas-toolbar" aria-label="Workspace View Controls">
+            <select id="selectGarment" title="Garment Size Reference Overlay">
+              <option value="none" selected>Garment: None</option>
+              <option value="tshirt">Adult T-Shirt (20&Prime;&times;28&Prime;)</option>
+              <option value="hoodie">Hoodie Back (22&Prime;&times;27&Prime;)</option>
+              <option value="tote">Tote Bag (15&Prime;&times;16&Prime;)</option>
+            </select>
+            <button type="button" class="btn btn-sm" id="btnZoomOut" title="Zoom Out" style="padding: 3px 8px;">&minus;</button>
+            <span class="zoom-readout" id="zoomReadout">100%</span>
+            <button type="button" class="btn btn-sm" id="btnZoomIn" title="Zoom In" style="padding: 3px 8px;">+</button>
+            <button type="button" class="btn btn-sm" id="btnZoomFit" title="Reset Zoom &amp; Pan" style="padding: 3px 8px;">Fit</button>
+          </div>
+          <canvas id="previewCanvas"></canvas>
+        </div>
+
+        <div class="stage-hint">
+          <span>Scroll to zoom &bull; Drag empty space to pan &bull; Top-left checkboxes = Include/skip page</span>
+          <span>Selected split: <strong>Arrow Keys</strong> nudge (Shift = 5&times;) &bull; <strong>Delete</strong> removes</span>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      /* =======================================================================
+         CONSTANTS & PAPER DEFINITIONS (All internal math is stored in INCHES)
+         ======================================================================= */
+      const CM_PER_INCH = 2.54;
+      const MIN_TILE_IN = 0.5;
+      const STORAGE_KEY = "stencil_splitter_prefs_v1";
+
+      const PAPER_SIZES = {
+        letter:  { name: "US Letter", width: 8.5, height: 11.0 },
+        legal:   { name: "US Legal", width: 8.5, height: 14.0 },
+        tabloid: { name: "Tabloid", width: 11.0, height: 17.0 },
+        a4:      { name: "A4", width: 210 / 25.4, height: 297 / 25.4 },
+        a3:      { name: "A3", width: 297 / 25.4, height: 420 / 25.4 }
+      };
+
+      const GARMENT_OVERLAYS = {
+        none:   null,
+        tshirt: { label: "Adult T-Shirt", wIn: 20, hIn: 28, type: "tshirt" },
+        hoodie: { label: "Hoodie Back", wIn: 22, hIn: 27, type: "hoodie" },
+        tote:   { label: "Tote Bag", wIn: 15, hIn: 16, type: "tote" }
+      };
+
+      /* =======================================================================
+         APPLICATION STATE
+         ======================================================================= */
+      const state = {
+        rawImage: null,
+        image: null,
+        imageName: "stencil",
+        natW: 0,
+        natH: 0,
+
+        // Stencil prep transforms & filters
+        rotation: 0,
+        mirrorX: false,
+        trimmed: false,
+        trimBounds: null,
+        filterMode: "original",
+        filterThreshold: 128,
+
+        // Physical & paper settings
+        unit: "in",
+        widthIn: 14.0,
+        heightIn: 18.0,
+        lockAspect: true,
+        paperKey: "letter",
+        orientation: "portrait",
+        printerMarginIn: 0.25,
+        overlapIn: 0.25,
+        vSplits: [],
+        hSplits: [],
+
+        // Print & PDF toggles
+        showBorder: true,
+        showMarks: true,
+        showOverlapHatch: true,
+        showCalibration: true,
+        includeCoverPage: false,
+        compressEmail: false,
+        disabledTiles: new Set(),
+
+        // Workspace view (Zoom, Pan, Garment Overlay)
+        zoom: 1.0,
+        panX: 0,
+        panY: 0,
+        garmentOverlay: "none",
+
+        // Interactive canvas state
+        selectedSplit: null,
+        hoverSplit: null,
+        hoverCheckbox: null,
+        tileCheckboxes: [],
+        dragging: null,
+        panning: null,
+        layout: null
+      };
+
+      /* =======================================================================
+         DOM REFERENCES
+         ======================================================================= */
+      const els = {
+        dropzone: document.getElementById("dropzone"),
+        fileInput: document.getElementById("fileInput"),
+        imgMeta: document.getElementById("imgMeta"),
+        btnSample: document.getElementById("btnSample"),
+        btnExportPdf: document.getElementById("btnExportPdf"),
+
+        prepStatus: document.getElementById("prepStatus"),
+        btnRotate: document.getElementById("btnRotate"),
+        btnTrim: document.getElementById("btnTrim"),
+        toggleMirror: document.getElementById("toggleMirror"),
+        selectFilter: document.getElementById("selectFilter"),
+        thresholdWrap: document.getElementById("thresholdWrap"),
+        thresholdLabel: document.getElementById("thresholdLabel"),
+        thresholdVal: document.getElementById("thresholdVal"),
+        inputThreshold: document.getElementById("inputThreshold"),
+
+        unitIn: document.getElementById("unitIn"),
+        unitCm: document.getElementById("unitCm"),
+        unitLabels: document.querySelectorAll(".unit-label"),
+        inputWidth: document.getElementById("inputWidth"),
+        inputHeight: document.getElementById("inputHeight"),
+        toggleAspect: document.getElementById("toggleAspect"),
+
+        selectPaper: document.getElementById("selectPaper"),
+        orientPortrait: document.getElementById("orientPortrait"),
+        orientLandscape: document.getElementById("orientLandscape"),
+        inputPrinterMargin: document.getElementById("inputPrinterMargin"),
+        inputOverlap: document.getElementById("inputOverlap"),
+
+        splitCounts: document.getElementById("splitCounts"),
+        btnAddV: document.getElementById("btnAddV"),
+        btnAddH: document.getElementById("btnAddH"),
+        btnRemoveSelected: document.getElementById("btnRemoveSelected"),
+        btnResetSplits: document.getElementById("btnResetSplits"),
+        btnSkipBlanks: document.getElementById("btnSkipBlanks"),
+
+        toggleBorder: document.getElementById("toggleBorder"),
+        toggleMarks: document.getElementById("toggleMarks"),
+        toggleOverlapHatch: document.getElementById("toggleOverlapHatch"),
+        toggleCalibration: document.getElementById("toggleCalibration"),
+        toggleCoverPage: document.getElementById("toggleCoverPage"),
+        toggleCompress: document.getElementById("toggleCompress"),
+
+        selectGarment: document.getElementById("selectGarment"),
+        btnZoomOut: document.getElementById("btnZoomOut"),
+        btnZoomIn: document.getElementById("btnZoomIn"),
+        btnZoomFit: document.getElementById("btnZoomFit"),
+        zoomReadout: document.getElementById("zoomReadout"),
+
+        statPages: document.getElementById("statPages"),
+        btnEnableAll: document.getElementById("btnEnableAll"),
+        statPrintable: document.getElementById("statPrintable"),
+        statDpi: document.getElementById("statDpi"),
+        statSelected: document.getElementById("statSelected"),
+
+        canvasWrap: document.getElementById("canvasWrap"),
+        canvas: document.getElementById("previewCanvas"),
+        toastContainer: document.getElementById("toastContainer")
+      };
+
+      const ctx = els.canvas.getContext("2d");
+
+      /* =======================================================================
+         SETTINGS PERSISTENCE (Offline localStorage)
+         ======================================================================= */
+      function saveSettings() {
+        try {
+          const prefs = {
+            unit: state.unit,
+            paperKey: state.paperKey,
+            orientation: state.orientation,
+            printerMarginIn: state.printerMarginIn,
+            overlapIn: state.overlapIn,
+            showBorder: state.showBorder,
+            showMarks: state.showMarks,
+            showOverlapHatch: state.showOverlapHatch,
+            showCalibration: state.showCalibration,
+            includeCoverPage: state.includeCoverPage,
+            compressEmail: state.compressEmail,
+            garmentOverlay: state.garmentOverlay
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+        } catch (err) {
+          // Ignore storage quota or sandbox restrictions
+        }
+      }
+
+      function loadSettings() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return;
+          const prefs = JSON.parse(raw);
+          if (prefs.unit === "in" || prefs.unit === "cm") state.unit = prefs.unit;
+          if (prefs.paperKey && PAPER_SIZES[prefs.paperKey]) {
+            state.paperKey = prefs.paperKey;
+            els.selectPaper.value = prefs.paperKey;
+          }
+          if (prefs.orientation === "portrait" || prefs.orientation === "landscape") {
+            state.orientation = prefs.orientation;
+          }
+          if (Number.isFinite(prefs.printerMarginIn) && prefs.printerMarginIn >= 0) {
+            state.printerMarginIn = prefs.printerMarginIn;
+          }
+          if (Number.isFinite(prefs.overlapIn) && prefs.overlapIn >= 0) {
+            state.overlapIn = prefs.overlapIn;
+          }
+          if (typeof prefs.showBorder === "boolean") {
+            state.showBorder = prefs.showBorder;
+            els.toggleBorder.checked = prefs.showBorder;
+          }
+          if (typeof prefs.showMarks === "boolean") {
+            state.showMarks = prefs.showMarks;
+            els.toggleMarks.checked = prefs.showMarks;
+          }
+          if (typeof prefs.showOverlapHatch === "boolean") {
+            state.showOverlapHatch = prefs.showOverlapHatch;
+            els.toggleOverlapHatch.checked = prefs.showOverlapHatch;
+          }
+          if (typeof prefs.showCalibration === "boolean") {
+            state.showCalibration = prefs.showCalibration;
+            els.toggleCalibration.checked = prefs.showCalibration;
+          }
+          if (typeof prefs.includeCoverPage === "boolean") {
+            state.includeCoverPage = prefs.includeCoverPage;
+            els.toggleCoverPage.checked = prefs.includeCoverPage;
+          }
+          if (typeof prefs.compressEmail === "boolean") {
+            state.compressEmail = prefs.compressEmail;
+            els.toggleCompress.checked = prefs.compressEmail;
+          }
+          if (prefs.garmentOverlay && Object.prototype.hasOwnProperty.call(GARMENT_OVERLAYS, prefs.garmentOverlay)) {
+            state.garmentOverlay = prefs.garmentOverlay;
+            els.selectGarment.value = prefs.garmentOverlay;
+          }
+        } catch (err) {
+          // Ignore malformed or restricted storage
+        }
+      }
+
+      /* =======================================================================
+         UTILITY FUNCTIONS
+         ======================================================================= */
+      function showToast(message, type = "info") {
+        const el = document.createElement("div");
+        el.className = `toast ${type}`;
+        el.textContent = message;
+        els.toastContainer.appendChild(el);
+        setTimeout(() => {
+          el.style.opacity = "0";
+          el.style.transition = "opacity 0.25s";
+          setTimeout(() => el.remove(), 260);
+        }, 3200);
+      }
+
+      function toDisplayUnit(inches) {
+        return state.unit === "cm" ? inches * CM_PER_INCH : inches;
+      }
+
+      function fromDisplayUnit(val) {
+        return state.unit === "cm" ? val / CM_PER_INCH : val;
+      }
+
+      function formatDim(inches, decimals = 2) {
+        const val = toDisplayUnit(inches);
+        return `${val.toFixed(decimals)} ${state.unit}`;
+      }
+
+      function getRowLetters(rowIndex) {
+        let s = "";
+        let n = rowIndex;
+        do {
+          s = String.fromCharCode(65 + (n % 26)) + s;
+          n = Math.floor(n / 26) - 1;
+        } while (n >= 0);
+        return s;
+      }
+
+      function getGridLabel(rowIndex, colIndex) {
+        return `${getRowLetters(rowIndex)}${colIndex + 1}`;
+      }
+
+      function getPaperDimensionsIn() {
+        const base = PAPER_SIZES[state.paperKey] || PAPER_SIZES.letter;
+        if (state.orientation === "landscape") {
+          return { w: base.height, h: base.width, name: base.name };
+        }
+        return { w: base.width, h: base.height, name: base.name };
+      }
+
+      /**
+       * Computes printable area and maximum allowed core tile dimensions
+       * accounting for printer margins, tape overlap, and footer clearance.
+       */
+      function getPageConstraints() {
+        const paper = getPaperDimensionsIn();
+        const maxMargin = Math.min(paper.w, paper.h) * 0.35;
+        const margin = Math.max(0, Math.min(state.printerMarginIn, maxMargin));
+        const footerReserve = (state.showMarks || state.showCalibration) ? 0.35 : 0;
+        const printableW = Math.max(1.0, paper.w - 2 * margin);
+        const printableH = Math.max(1.0, paper.h - 2 * margin - footerReserve);
+        const maxOverlap = Math.min(printableW, printableH) * 0.4;
+        const overlap = Math.max(0, Math.min(state.overlapIn, maxOverlap));
+        const maxTileW = Math.max(MIN_TILE_IN, printableW - overlap);
+        const maxTileH = Math.max(MIN_TILE_IN, printableH - overlap);
+
+        return {
+          paperW: paper.w,
+          paperH: paper.h,
+          margin,
+          footerReserve,
+          printableW,
+          printableH,
+          overlap,
+          maxTileW,
+          maxTileH
+        };
+      }
+
+      /* =======================================================================
+         SPLIT LINE VALIDATION & OPTION-A AUTO-CLAMPING ENGINE
+         ======================================================================= */
+      function getMaxTileSpan(axis, isLastTile) {
+        const c = getPageConstraints();
+        if (axis === "v") return isLastTile ? c.printableW : c.maxTileW;
+        return isLastTile ? c.printableH : c.maxTileH;
+      }
+
+      function computeEvenSplits(totalSpan, maxCore, maxLast) {
+        if (totalSpan <= maxLast + 1e-6) return [];
+        const minInterior = Math.ceil((totalSpan - maxLast) / maxCore);
+        const count = Math.max(1, minInterior) + 1;
+        const splits = [];
+        for (let i = 1; i < count; i++) {
+          splits.push((totalSpan * i) / count);
+        }
+        return splits;
+      }
+
+      function validateAxisSplits(axis) {
+        const total = axis === "v" ? state.widthIn : state.heightIn;
+        const c = getPageConstraints();
+        const maxCore = axis === "v" ? c.maxTileW : c.maxTileH;
+        const maxLast = axis === "v" ? c.printableW : c.printableH;
+
+        let splits = (axis === "v" ? state.vSplits : state.hSplits)
+          .filter((v) => Number.isFinite(v) && v > 0 && v < total)
+          .sort((a, b) => a - b);
+
+        // Ensure minimum number of splits required to fit total span on selected paper
+        const minSplitsNeeded = total <= maxLast + 1e-6 ? 0 : Math.ceil((total - maxLast) / maxCore);
+        if (splits.length < minSplitsNeeded) {
+          splits = computeEvenSplits(total, maxCore, maxLast);
+        } else if (splits.length > 0) {
+          // Verify feasibility of current split positions; if any tile exceeds max, clamp or rebalance
+          const n = splits.length;
+          // Forward pass: keep within [prev + MIN_TILE_IN, prev + maxCore]
+          for (let i = 0; i < n; i++) {
+            const prev = i === 0 ? 0 : splits[i - 1];
+            const remTilesAfter = n - i; // includes last tile
+            const maxRemainingCapacity = (remTilesAfter - 1) * maxCore + maxLast;
+            const minAllowed = Math.max(prev + MIN_TILE_IN, total - maxRemainingCapacity);
+            const maxAllowed = Math.min(prev + maxCore, total - remTilesAfter * MIN_TILE_IN);
+            if (minAllowed > maxAllowed) {
+              splits = computeEvenSplits(total, maxCore, maxLast);
+              break;
+            }
+            splits[i] = Math.max(minAllowed, Math.min(maxAllowed, splits[i]));
+          }
+        }
+
+        if (axis === "v") state.vSplits = splits;
+        else state.hSplits = splits;
+      }
+
+      function validateAllSplits() {
+        validateAxisSplits("v");
+        validateAxisSplits("h");
+
+        // Prune out-of-range disabled tile keys
+        const cols = state.vSplits.length + 1;
+        const rows = state.hSplits.length + 1;
+        for (const key of Array.from(state.disabledTiles)) {
+          const [r, col] = key.split(",").map(Number);
+          if (r < 0 || r >= rows || col < 0 || col >= cols) {
+            state.disabledTiles.delete(key);
+          }
+        }
+
+        // Prune invalid selected split
+        if (state.selectedSplit) {
+          const arr = state.selectedSplit.axis === "v" ? state.vSplits : state.hSplits;
+          if (state.selectedSplit.index < 0 || state.selectedSplit.index >= arr.length) {
+            state.selectedSplit = null;
+          }
+        }
+      }
+
+      /**
+       * Returns strict drag bounds [min, max] for a single split line so neither
+       * adjacent tile ever exceeds the paper's printable area (Option A).
+       */
+      function getSplitDragBounds(axis, index) {
+        const splits = axis === "v" ? state.vSplits : state.hSplits;
+        const total = axis === "v" ? state.widthIn : state.heightIn;
+        const prev = index === 0 ? 0 : splits[index - 1];
+        const next = index === splits.length - 1 ? total : splits[index + 1];
+
+        const leftMaxSpan = getMaxTileSpan(axis, false);
+        const rightMaxSpan = getMaxTileSpan(axis, index === splits.length - 1);
+
+        const min = Math.max(prev + MIN_TILE_IN, next - rightMaxSpan);
+        const max = Math.min(next - MIN_TILE_IN, prev + leftMaxSpan);
+        return { min: Math.min(min, max), max: Math.max(min, max) };
+      }
+
+      function resetEvenSplits() {
+        const c = getPageConstraints();
+        state.vSplits = computeEvenSplits(state.widthIn, c.maxTileW, c.printableW);
+        state.hSplits = computeEvenSplits(state.heightIn, c.maxTileH, c.printableH);
+        state.selectedSplit = null;
+        state.disabledTiles.clear();
+        updateUI();
+        drawPreview();
+      }
+
+      function addSplit(axis) {
+        if (!state.image) {
+          showToast("Load an image first before adding split lines.", "warn");
+          return;
+        }
+        const splits = axis === "v" ? state.vSplits : state.hSplits;
+        const total = axis === "v" ? state.widthIn : state.heightIn;
+        const edges = [0, ...splits, total];
+
+        // Find the widest existing tile segment to bisect
+        let bestIdx = 0;
+        let bestSpan = 0;
+        for (let i = 0; i < edges.length - 1; i++) {
+          const span = edges[i + 1] - edges[i];
+          if (span > bestSpan) {
+            bestSpan = span;
+            bestIdx = i;
+          }
+        }
+
+        if (bestSpan < MIN_TILE_IN * 2) {
+          showToast("Remaining tiles are too narrow to split further.", "warn");
+          return;
+        }
+
+        const newPos = (edges[bestIdx] + edges[bestIdx + 1]) / 2;
+        splits.push(newPos);
+        splits.sort((a, b) => a - b);
+        const newIndex = splits.indexOf(newPos);
+        state.selectedSplit = { axis, index: newIndex };
+        validateAllSplits();
+        updateUI();
+        drawPreview();
+      }
+
+      function removeSelectedSplit() {
+        if (!state.selectedSplit) return;
+        const { axis, index } = state.selectedSplit;
+        const splits = axis === "v" ? state.vSplits : state.hSplits;
+        const total = axis === "v" ? state.widthIn : state.heightIn;
+
+        const prev = index === 0 ? 0 : splits[index - 1];
+        const next = index === splits.length - 1 ? total : splits[index + 1];
+        const mergedSpan = next - prev;
+        const maxAllowed = getMaxTileSpan(axis, index === splits.length - 1);
+
+        if (mergedSpan > maxAllowed + 1e-4) {
+          showToast(
+            `Cannot remove this split: merged tile (${formatDim(mergedSpan)}) would exceed paper limit (${formatDim(maxAllowed)}).`,
+            "warn"
+          );
+          return;
+        }
+
+        splits.splice(index, 1);
+        state.selectedSplit = null;
+        validateAllSplits();
+        updateUI();
+        drawPreview();
+      }
+
+      /* =======================================================================
+         IMAGE LOADING, STENCIL PREP PIPELINE & BLANK PAGE DETECTION
+         ======================================================================= */
+      function computeTrimBounds(img) {
+        const rawW = img.naturalWidth || img.width;
+        const rawH = img.naturalHeight || img.height;
+        const maxScan = 1200;
+        const scale = Math.min(1, maxScan / Math.max(rawW, rawH));
+        const sw = Math.max(1, Math.round(rawW * scale));
+        const sh = Math.max(1, Math.round(rawH * scale));
+
+        const c = document.createElement("canvas");
+        c.width = sw;
+        c.height = sh;
+        const g = c.getContext("2d", { willReadFrequently: true });
+        g.drawImage(img, 0, 0, sw, sh);
+        const data = g.getImageData(0, 0, sw, sh).data;
+
+        let minX = sw, minY = sh, maxX = -1, maxY = -1;
+        for (let y = 0; y < sh; y++) {
+          for (let x = 0; x < sw; x++) {
+            const idx = (y * sw + x) * 4;
+            const a = data[idx + 3];
+            if (a > 20 && (data[idx] < 245 || data[idx + 1] < 245 || data[idx + 2] < 245)) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+
+        if (maxX < minX || maxY < minY) {
+          return { sx: 0, sy: 0, sw: rawW, sh: rawH };
+        }
+
+        const pad = 2;
+        const rx = Math.max(0, Math.floor((minX - pad) / scale));
+        const ry = Math.max(0, Math.floor((minY - pad) / scale));
+        const rRight = Math.min(rawW, Math.ceil((maxX + 1 + pad) / scale));
+        const rBottom = Math.min(rawH, Math.ceil((maxY + 1 + pad) / scale));
+        return {
+          sx: rx,
+          sy: ry,
+          sw: Math.max(1, rRight - rx),
+          sh: Math.max(1, rBottom - ry)
+        };
+      }
+
+      function rebuildProcessedImage(adjustPhysicalAspect = false) {
+        if (!state.rawImage) return;
+
+        const rawW = state.rawImage.naturalWidth || state.rawImage.width;
+        const rawH = state.rawImage.naturalHeight || state.rawImage.height;
+        const crop = state.trimmed && state.trimBounds
+          ? state.trimBounds
+          : { sx: 0, sy: 0, sw: rawW, sh: rawH };
+
+        const rotSwapped = state.rotation % 180 !== 0;
+        let outW = rotSwapped ? crop.sh : crop.sw;
+        let outH = rotSwapped ? crop.sw : crop.sh;
+
+        const maxSide = state.filterMode === "original" ? 4096 : 2400;
+        if (Math.max(outW, outH) > maxSide) {
+          const factor = maxSide / Math.max(outW, outH);
+          outW = Math.max(1, Math.round(outW * factor));
+          outH = Math.max(1, Math.round(outH * factor));
+        }
+
+        const c = document.createElement("canvas");
+        c.width = outW;
+        c.height = outH;
+        const g = c.getContext("2d", { willReadFrequently: state.filterMode !== "original" });
+
+        g.fillStyle = "#ffffff";
+        g.fillRect(0, 0, outW, outH);
+
+        g.save();
+        g.translate(outW / 2, outH / 2);
+        if (state.mirrorX) g.scale(-1, 1);
+        g.rotate((state.rotation * Math.PI) / 180);
+
+        const drawW = rotSwapped ? outH : outW;
+        const drawH = rotSwapped ? outW : outH;
+        g.imageSmoothingEnabled = true;
+        g.imageSmoothingQuality = "high";
+        g.drawImage(
+          state.rawImage,
+          crop.sx, crop.sy, crop.sw, crop.sh,
+          -drawW / 2, -drawH / 2, drawW, drawH
+        );
+        g.restore();
+
+        if (state.filterMode !== "original") {
+          const imgData = g.getImageData(0, 0, outW, outH);
+          const d = imgData.data;
+
+          if (state.filterMode === "grayscale") {
+            for (let i = 0; i < d.length; i += 4) {
+              const lum = Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
+              d[i] = d[i + 1] = d[i + 2] = lum;
+              d[i + 3] = 255;
+            }
+          } else if (state.filterMode === "threshold") {
+            const thresh = state.filterThreshold;
+            for (let i = 0; i < d.length; i += 4) {
+              const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+              const v = lum < thresh ? 0 : 255;
+              d[i] = d[i + 1] = d[i + 2] = v;
+              d[i + 3] = 255;
+            }
+          } else if (state.filterMode === "edges") {
+            const lum = new Uint8Array(outW * outH);
+            for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+              lum[p] = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) | 0;
+            }
+            const edgeCutoff = Math.max(18, Math.round((255 - state.filterThreshold) * 0.9 + 20));
+            for (let y = 0; y < outH; y++) {
+              for (let x = 0; x < outW; x++) {
+                const idx = (y * outW + x) * 4;
+                if (x === 0 || y === 0 || x === outW - 1 || y === outH - 1) {
+                  d[idx] = d[idx + 1] = d[idx + 2] = 255;
+                  d[idx + 3] = 255;
+                  continue;
+                }
+                const p = y * outW + x;
+                const tl = lum[p - outW - 1], t = lum[p - outW], tr = lum[p - outW + 1];
+                const l  = lum[p - 1],                            r  = lum[p + 1];
+                const bl = lum[p + outW - 1], b = lum[p + outW], br = lum[p + outW + 1];
+                const gx = -tl - 2 * l - bl + tr + 2 * r + br;
+                const gy = -tl - 2 * t - tr + bl + 2 * b + br;
+                const mag = Math.abs(gx) + Math.abs(gy);
+                const v = mag > edgeCutoff ? 15 : 255;
+                d[idx] = d[idx + 1] = d[idx + 2] = v;
+                d[idx + 3] = 255;
+              }
+            }
+          }
+
+          g.putImageData(imgData, 0, 0);
+        }
+
+        state.image = c;
+        state.natW = outW;
+        state.natH = outH;
+        els.imgMeta.textContent = `${state.natW} × ${state.natH} px`;
+
+        if (adjustPhysicalAspect && state.lockAspect && state.natW > 0) {
+          state.heightIn = Math.max(0.5, Number((state.widthIn * (state.natH / state.natW)).toFixed(2)));
+          validateAllSplits();
+        }
+      }
+
+      function autoSkipBlankPages() {
+        if (!state.image) return;
+        const maxScan = 1000;
+        const scale = Math.min(1, maxScan / Math.max(state.natW, state.natH));
+        const sw = Math.max(1, Math.round(state.natW * scale));
+        const sh = Math.max(1, Math.round(state.natH * scale));
+
+        const c = document.createElement("canvas");
+        c.width = sw;
+        c.height = sh;
+        const g = c.getContext("2d", { willReadFrequently: true });
+        g.fillStyle = "#ffffff";
+        g.fillRect(0, 0, sw, sh);
+        g.drawImage(state.image, 0, 0, sw, sh);
+        const data = g.getImageData(0, 0, sw, sh).data;
+
+        const xEdges = [0, ...state.vSplits, state.widthIn];
+        const yEdges = [0, ...state.hSplits, state.heightIn];
+        const cols = xEdges.length - 1;
+        const rows = yEdges.length - 1;
+        const blankKeys = [];
+
+        for (let r = 0; r < rows; r++) {
+          for (let col = 0; col < cols; col++) {
+            const x0 = Math.max(0, Math.floor((xEdges[col] / state.widthIn) * sw));
+            const x1 = Math.min(sw, Math.ceil((xEdges[col + 1] / state.widthIn) * sw));
+            const y0 = Math.max(0, Math.floor((yEdges[r] / state.heightIn) * sh));
+            const y1 = Math.min(sh, Math.ceil((yEdges[r + 1] / state.heightIn) * sh));
+
+            let inkPixels = 0;
+            const totalPixels = Math.max(1, (x1 - x0) * (y1 - y0));
+            for (let y = y0; y < y1; y++) {
+              for (let x = x0; x < x1; x++) {
+                const idx = (y * sw + x) * 4;
+                if (data[idx] < 244 || data[idx + 1] < 244 || data[idx + 2] < 244) {
+                  inkPixels++;
+                }
+              }
+            }
+
+            if (inkPixels / totalPixels < 0.001) {
+              blankKeys.push(`${r},${col}`);
+            }
+          }
+        }
+
+        if (blankKeys.length === cols * rows) {
+          showToast("Every tile appeared blank—no pages were skipped.", "warn");
+          return;
+        }
+
+        state.disabledTiles.clear();
+        blankKeys.forEach((k) => state.disabledTiles.add(k));
+        updateUI();
+        drawPreview();
+
+        if (blankKeys.length > 0) {
+          showToast(`Auto-skipped ${blankKeys.length} blank ${blankKeys.length === 1 ? "page" : "pages"}.`, "success");
+        } else {
+          showToast("All pages contain artwork—no blank pages found.", "info");
+        }
+      }
+
+      function loadImageSource(imgElement, fileName) {
+        state.rawImage = imgElement;
+        state.imageName = (fileName || "stencil").replace(/\.[^.]+$/, "");
+        state.rotation = 0;
+        state.mirrorX = false;
+        state.trimmed = false;
+        state.trimBounds = null;
+        state.disabledTiles.clear();
+        state.zoom = 1.0;
+        state.panX = 0;
+        state.panY = 0;
+
+        els.toggleMirror.checked = false;
+        els.btnRotate.disabled = false;
+        els.btnTrim.disabled = false;
+        els.btnSkipBlanks.disabled = false;
+
+        rebuildProcessedImage(false);
+
+        const defaultW = 14.0;
+        const ratio = state.natH / state.natW;
+        state.widthIn = defaultW;
+        state.heightIn = Math.max(0.5, Number((defaultW * ratio).toFixed(2)));
+
+        els.btnExportPdf.disabled = false;
+
+        resetEvenSplits();
+        showToast("Design loaded! Drag the cyan split lines to avoid cutting fine details.", "success");
+      }
+
+      function handleFileUpload(file) {
+        if (!file || !file.type.startsWith("image/")) {
+          showToast("Please select a valid image file (PNG, JPG, WebP, or SVG).", "error");
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => loadImageSource(img, file.name);
+          img.onerror = () => showToast("Could not decode that image file.", "error");
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function generateSampleStencil() {
+        const c = document.createElement("canvas");
+        c.width = 1400;
+        c.height = 1800;
+        const g = c.getContext("2d");
+
+        g.fillStyle = "#ffffff";
+        g.fillRect(0, 0, c.width, c.height);
+
+        const cx = c.width / 2;
+        const cy = c.height / 2;
+
+        g.strokeStyle = "#111827";
+        g.fillStyle = "#111827";
+
+        // Outer ornate geometric frame
+        g.lineWidth = 14;
+        g.strokeRect(140, 140, c.width - 280, c.height - 280);
+        g.lineWidth = 5;
+        g.strokeRect(168, 168, c.width - 336, c.height - 336);
+
+        // Central sun / mandala burst
+        g.save();
+        g.translate(cx, cy - 60);
+        for (let i = 0; i < 24; i++) {
+          g.rotate((Math.PI * 2) / 24);
+          g.beginPath();
+          g.moveTo(0, -140);
+          g.lineTo(18, -330);
+          g.lineTo(0, -420);
+          g.lineTo(-18, -330);
+          g.closePath();
+          g.fill();
+        }
+        g.fillStyle = "#ffffff";
+        g.beginPath();
+        g.arc(0, 0, 185, 0, Math.PI * 2);
+        g.fill();
+        g.lineWidth = 14;
+        g.stroke();
+
+        // Crescent moon & botanical center detail
+        g.fillStyle = "#111827";
+        g.beginPath();
+        g.arc(0, 0, 125, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = "#ffffff";
+        g.beginPath();
+        g.arc(46, -24, 102, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+
+        // Stencil lettering banner
+        g.fillStyle = "#111827";
+        g.font = "900 84px sans-serif";
+        g.textAlign = "center";
+        g.fillText("HAND DYED STUDIO", cx, 1520);
+        g.font = "700 34px monospace";
+        g.fillText("CUSTOM STENCIL TEMPLATE", cx, 1585);
+
+        loadImageSource(c, "sample-stencil.png");
+      }
+
+      /* =======================================================================
+         UI SYNCHRONIZATION
+         ======================================================================= */
+      function updateUI() {
+        els.unitIn.classList.toggle("active", state.unit === "in");
+        els.unitCm.classList.toggle("active", state.unit === "cm");
+        els.unitLabels.forEach((el) => (el.textContent = state.unit));
+
+        els.orientPortrait.classList.toggle("active", state.orientation === "portrait");
+        els.orientLandscape.classList.toggle("active", state.orientation === "landscape");
+
+        if (document.activeElement !== els.inputWidth) {
+          els.inputWidth.value = toDisplayUnit(state.widthIn).toFixed(2);
+        }
+        if (document.activeElement !== els.inputHeight) {
+          els.inputHeight.value = toDisplayUnit(state.heightIn).toFixed(2);
+        }
+        if (document.activeElement !== els.inputPrinterMargin) {
+          els.inputPrinterMargin.value = toDisplayUnit(state.printerMarginIn).toFixed(2);
+        }
+        if (document.activeElement !== els.inputOverlap) {
+          els.inputOverlap.value = toDisplayUnit(state.overlapIn).toFixed(2);
+        }
+
+        els.splitCounts.textContent = `${state.vSplits.length}V / ${state.hSplits.length}H`;
+        els.btnRemoveSelected.disabled = !state.selectedSplit;
+
+        // Prep status & filter threshold UI
+        els.prepStatus.textContent = `${state.rotation}°${state.mirrorX ? " • Mirrored" : ""}${state.trimmed ? " • Trimmed" : ""}`;
+        els.btnTrim.textContent = state.trimmed ? "Undo Trim" : "Trim Whitespace";
+        const showSlider = state.filterMode === "threshold" || state.filterMode === "edges";
+        els.thresholdWrap.style.display = showSlider ? "flex" : "none";
+        els.thresholdLabel.textContent = state.filterMode === "edges" ? "Edge Sensitivity" : "B&W Threshold";
+        els.thresholdVal.textContent = String(state.filterThreshold);
+        els.zoomReadout.textContent = `${Math.round(state.zoom * 100)}%`;
+
+        const c = getPageConstraints();
+        els.statPrintable.textContent = `${formatDim(c.maxTileW, 1)} × ${formatDim(c.maxTileH, 1)}`;
+
+        if (state.image) {
+          const cols = state.vSplits.length + 1;
+          const rows = state.hSplits.length + 1;
+          const totalPages = cols * rows;
+          const enabledPages = Math.max(0, totalPages - state.disabledTiles.size);
+
+          els.statPages.textContent =
+            state.disabledTiles.size > 0
+              ? `${enabledPages} of ${totalPages} (${cols}×${rows})`
+              : `${totalPages} (${cols}×${rows})`;
+          els.btnEnableAll.style.display = state.disabledTiles.size > 0 ? "inline-flex" : "none";
+
+          const effDpi = Math.round(Math.min(state.natW / state.widthIn, state.natH / state.heightIn));
+          els.statDpi.textContent = `${effDpi} DPI`;
+        } else {
+          els.statPages.textContent = "0";
+          els.btnEnableAll.style.display = "none";
+          els.statDpi.textContent = "—";
+        }
+
+        if (state.selectedSplit) {
+          const { axis, index } = state.selectedSplit;
+          const pos = axis === "v" ? state.vSplits[index] : state.hSplits[index];
+          els.statSelected.textContent = `${axis === "v" ? "Vertical" : "Horizontal"} #${index + 1} @ ${formatDim(pos)}`;
+        } else {
+          els.statSelected.textContent = "None";
+        }
+      }
+
+      /* =======================================================================
+         LIVE PREVIEW CANVAS RENDERER
+         ======================================================================= */
+      function resizeCanvas() {
+        const rect = els.canvasWrap.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        els.canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+        els.canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        drawPreview();
+      }
+
+      function drawPreview() {
+        const dpr = window.devicePixelRatio || 1;
+        const cw = els.canvas.width / dpr;
+        const ch = els.canvas.height / dpr;
+        ctx.clearRect(0, 0, cw, ch);
+        state.tileCheckboxes = [];
+
+        if (!state.image) {
+          state.layout = null;
+          ctx.save();
+          ctx.fillStyle = "rgba(148, 163, 184, 0.7)";
+          ctx.font = "600 16px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("Upload a design or click 'Load Sample Stencil' to start", cw / 2, ch / 2 - 8);
+          ctx.fillStyle = "rgba(100, 116, 139, 0.8)";
+          ctx.font = "13px sans-serif";
+          ctx.fillText("Drag split lines freely on the live preview — 100% offline", cw / 2, ch / 2 + 18);
+          ctx.restore();
+          return;
+        }
+
+        const padLeft = 56;
+        const padTop = 44;
+        const padRight = 36;
+        const padBottom = 36;
+        const availW = Math.max(80, cw - padLeft - padRight);
+        const availH = Math.max(80, ch - padTop - padBottom);
+        const fitScale = Math.min(availW / state.widthIn, availH / state.heightIn);
+        const scale = fitScale * state.zoom;
+        const drawW = state.widthIn * scale;
+        const drawH = state.heightIn * scale;
+        const originX = padLeft + (availW - drawW) / 2 + state.panX;
+        const originY = padTop + (availH - drawH) / 2 + state.panY;
+
+        state.layout = { originX, originY, drawW, drawH, scale, fitScale };
+
+        // Optional Garment Size Reference Overlay behind artwork
+        const garment = GARMENT_OVERLAYS[state.garmentOverlay];
+        if (garment) {
+          drawGarmentOverlay(garment, originX + drawW / 2, originY + drawH / 2, scale);
+        }
+
+        // White artboard backdrop with elevation shadow
+        ctx.save();
+        ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+        ctx.shadowBlur = 24;
+        ctx.shadowOffsetY = 8;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(originX, originY, drawW, drawH);
+        ctx.restore();
+
+        // Draw processed design image
+        ctx.drawImage(state.image, originX, originY, drawW, drawH);
+
+        const c = getPageConstraints();
+        const xEdges = [0, ...state.vSplits, state.widthIn];
+        const yEdges = [0, ...state.hSplits, state.heightIn];
+        const cols = xEdges.length - 1;
+        const rows = yEdges.length - 1;
+
+        // 1. Subtle amber tape-overlap indicators along interior seams
+        if (c.overlap > 0.001) {
+          ctx.save();
+          ctx.fillStyle = "rgba(245, 158, 11, 0.22)";
+          state.vSplits.forEach((posIn) => {
+            const x = originX + posIn * scale;
+            const ovW = Math.min(c.overlap * scale, originX + drawW - x);
+            if (ovW > 0) {
+              ctx.fillRect(x, originY, ovW, drawH);
+              if (state.showOverlapHatch) drawPreviewHatch(x, originY, ovW, drawH);
+            }
+          });
+          state.hSplits.forEach((posIn) => {
+            const y = originY + posIn * scale;
+            const ovH = Math.min(c.overlap * scale, originY + drawH - y);
+            if (ovH > 0) {
+              ctx.fillRect(originX, y, drawW, ovH);
+              if (state.showOverlapHatch) drawPreviewHatch(originX, y, drawW, ovH);
+            }
+          });
+          ctx.restore();
+        }
+
+        // 2. Per-tile borders, alignment marks, grid IDs, skipped state, and interactive checkboxes
+        for (let r = 0; r < rows; r++) {
+          for (let col = 0; col < cols; col++) {
+            const tx = originX + xEdges[col] * scale;
+            const ty = originY + yEdges[r] * scale;
+            const tw = (xEdges[col + 1] - xEdges[col]) * scale;
+            const th = (yEdges[r + 1] - yEdges[r]) * scale;
+            const key = `${r},${col}`;
+            const isDisabled = state.disabledTiles.has(key);
+
+            if (isDisabled) {
+              ctx.save();
+              ctx.fillStyle = "rgba(15, 23, 42, 0.72)";
+              ctx.fillRect(tx, ty, tw, th);
+              ctx.strokeStyle = "rgba(239, 68, 68, 0.65)";
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.moveTo(tx + 6, ty + 6);
+              ctx.lineTo(tx + tw - 6, ty + th - 6);
+              ctx.moveTo(tx + tw - 6, ty + 6);
+              ctx.lineTo(tx + 6, ty + th - 6);
+              ctx.stroke();
+
+              if (tw > 64 && th > 40) {
+                ctx.fillStyle = "#fca5a5";
+                ctx.font = "700 11px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("SKIPPED", tx + tw / 2, ty + th / 2);
+              }
+              ctx.restore();
+            }
+
+            if (state.showBorder) {
+              ctx.save();
+              ctx.strokeStyle = "rgba(15, 23, 42, 0.45)";
+              ctx.lineWidth = 1;
+              ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
+              ctx.restore();
+            }
+
+            if (state.showMarks && !isDisabled) {
+              // Corner crosshairs (+)
+              const arm = Math.min(7, tw * 0.12, th * 0.12);
+              const corners = [
+                [tx, ty],
+                [tx + tw, ty],
+                [tx, ty + th],
+                [tx + tw, ty + th]
+              ];
+              ctx.save();
+              ctx.strokeStyle = "#0f172a";
+              ctx.lineWidth = 1.25;
+              corners.forEach(([cxp, cyp]) => {
+                ctx.beginPath();
+                ctx.moveTo(cxp - arm, cyp);
+                ctx.lineTo(cxp + arm, cyp);
+                ctx.moveTo(cxp, cyp - arm);
+                ctx.lineTo(cxp, cyp + arm);
+                ctx.stroke();
+              });
+              ctx.restore();
+
+              // Bottom-right Grid ID badge preview
+              if (tw > 34 && th > 24) {
+                const label = getGridLabel(r, col);
+                ctx.save();
+                ctx.font = "700 11px monospace";
+                const textW = ctx.measureText(label).width;
+                const bw = textW + 10;
+                const bh = 18;
+                const bx = tx + tw - bw - 5;
+                const by = ty + th - bh - 5;
+                ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+                ctx.strokeStyle = "#0f172a";
+                ctx.lineWidth = 1;
+                ctx.fillRect(bx, by, bw, bh);
+                ctx.strokeRect(bx, by, bw, bh);
+                ctx.fillStyle = "#0f172a";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(label, bx + bw / 2, by + bh / 2 + 0.5);
+                ctx.restore();
+              }
+            }
+
+            // Interactive top-left Include/Skip Checkbox (UI-only, never prints)
+            if (tw > 22 && th > 22) {
+              const cbSize = 17;
+              const cbX = tx + 6;
+              const cbY = ty + 6;
+              state.tileCheckboxes.push({ key, x: cbX, y: cbY, size: cbSize });
+
+              const isHovered = state.hoverCheckbox === key;
+              ctx.save();
+              ctx.fillStyle = isDisabled ? "#1e293b" : "#0ea5e9";
+              ctx.strokeStyle = isHovered ? "#ffffff" : (isDisabled ? "#94a3b8" : "#0284c7");
+              ctx.lineWidth = isHovered ? 2 : 1.25;
+              ctx.beginPath();
+              ctx.roundRect(cbX, cbY, cbSize, cbSize, 4);
+              ctx.fill();
+              ctx.stroke();
+
+              if (!isDisabled) {
+                ctx.strokeStyle = "#082f49";
+                ctx.lineWidth = 2.2;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+                ctx.beginPath();
+                ctx.moveTo(cbX + 4, cbY + 8.5);
+                ctx.lineTo(cbX + 7.5, cbY + 12);
+                ctx.lineTo(cbX + 13, cbY + 5.2);
+                ctx.stroke();
+              }
+              ctx.restore();
+            }
+          }
+        }
+
+        // 3. Interactive Split Lines
+        const drawSplitLine = (axis, posIn, idx) => {
+          const isSelected = state.selectedSplit && state.selectedSplit.axis === axis && state.selectedSplit.index === idx;
+          const isHovered = state.hoverSplit && state.hoverSplit.axis === axis && state.hoverSplit.index === idx;
+
+          ctx.save();
+          ctx.strokeStyle = isSelected ? "#f59e0b" : (isHovered ? "#7dd3fc" : "#0ea5e9");
+          ctx.lineWidth = isSelected ? 3 : (isHovered ? 2.5 : 2);
+          ctx.setLineDash(isSelected ? [] : [7, 5]);
+          ctx.beginPath();
+
+          if (axis === "v") {
+            const x = originX + posIn * scale;
+            ctx.moveTo(x, originY - 8);
+            ctx.lineTo(x, originY + drawH + 8);
+            ctx.stroke();
+
+            // Drag handle pill at top
+            ctx.setLineDash([]);
+            ctx.fillStyle = isSelected ? "#f59e0b" : "#0ea5e9";
+            ctx.beginPath();
+            ctx.roundRect(x - 10, originY - 18, 20, 14, 4);
+            ctx.fill();
+          } else {
+            const y = originY + posIn * scale;
+            ctx.moveTo(originX - 8, y);
+            ctx.lineTo(originX + drawW + 8, y);
+            ctx.stroke();
+
+            // Drag handle pill at left
+            ctx.setLineDash([]);
+            ctx.fillStyle = isSelected ? "#f59e0b" : "#0ea5e9";
+            ctx.beginPath();
+            ctx.roundRect(originX - 18, y - 10, 14, 20, 4);
+            ctx.fill();
+          }
+          ctx.restore();
+        };
+
+        state.vSplits.forEach((posIn, i) => drawSplitLine("v", posIn, i));
+        state.hSplits.forEach((posIn, i) => drawSplitLine("h", posIn, i));
+
+        // 4. Physical Rulers
+        drawRulers(originX, originY, drawW, drawH, scale);
+      }
+
+      function drawPreviewHatch(rx, ry, rw, rh) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(rx, ry, rw, rh);
+        ctx.clip();
+        ctx.strokeStyle = "rgba(245, 158, 11, 0.45)";
+        ctx.lineWidth = 1;
+        const step = 8;
+        ctx.beginPath();
+        for (let d = -rh; d < rw + rh; d += step) {
+          ctx.moveTo(rx + d, ry);
+          ctx.lineTo(rx + d + rh, ry + rh);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawGarmentOverlay(garment, cx, cy, scale) {
+        const gw = garment.wIn * scale;
+        const gh = garment.hIn * scale;
+        const left = cx - gw / 2;
+        const top = cy - gh / 2;
+
+        ctx.save();
+        ctx.fillStyle = "rgba(56, 189, 248, 0.06)";
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.45)";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 5]);
+        ctx.beginPath();
+
+        if (garment.type === "tote") {
+          ctx.roundRect(left, top, gw, gh, 6);
+          const handleW = gw * 0.42;
+          const handleH = gh * 0.22;
+          ctx.moveTo(cx - handleW / 2, top);
+          ctx.quadraticCurveTo(cx - handleW / 2, top - handleH, cx, top - handleH);
+          ctx.quadraticCurveTo(cx + handleW / 2, top - handleH, cx + handleW / 2, top);
+        } else {
+          const sleeveW = gw * 0.28;
+          const sleeveDrop = gh * 0.24;
+          const neckW = gw * 0.34;
+          const neckDip = gh * 0.08;
+          const bodyTop = top + gh * 0.05;
+
+          ctx.moveTo(cx - neckW / 2, top);
+          ctx.quadraticCurveTo(cx, top + neckDip, cx + neckW / 2, top);
+          ctx.lineTo(left + gw, bodyTop);
+          ctx.lineTo(left + gw + sleeveW, top + sleeveDrop);
+          ctx.lineTo(left + gw + sleeveW * 0.58, top + sleeveDrop + gh * 0.14);
+          ctx.lineTo(left + gw, top + sleeveDrop + gh * 0.08);
+          ctx.lineTo(left + gw, top + gh);
+          ctx.lineTo(left, top + gh);
+          ctx.lineTo(left, top + sleeveDrop + gh * 0.08);
+          ctx.lineTo(left - sleeveW * 0.58, top + sleeveDrop + gh * 0.14);
+          ctx.lineTo(left - sleeveW, top + sleeveDrop);
+          ctx.lineTo(left, bodyTop);
+          ctx.closePath();
+        }
+
+        ctx.fill();
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = "rgba(148, 163, 184, 0.78)";
+        ctx.font = "600 11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillText(
+          `${garment.label} (${formatDim(garment.wIn, 1)} × ${formatDim(garment.hIn, 1)})`,
+          cx,
+          top + gh + 8
+        );
+        ctx.restore();
+      }
+
+      function drawRulers(originX, originY, drawW, drawH, scale) {
+        const stepUnits = state.unit === "cm" ? 5 : 2;
+        const stepIn = fromDisplayUnit(stepUnits);
+        const totalWUnits = toDisplayUnit(state.widthIn);
+        const totalHUnits = toDisplayUnit(state.heightIn);
+
+        ctx.save();
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.45)";
+        ctx.fillStyle = "rgba(148, 163, 184, 0.85)";
+        ctx.font = "10.5px monospace";
+        ctx.lineWidth = 1;
+
+        // Top horizontal ruler
+        const topY = originY - 22;
+        ctx.beginPath();
+        ctx.moveTo(originX, topY);
+        ctx.lineTo(originX + drawW, topY);
+        ctx.stroke();
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        for (let u = 0; u <= totalWUnits + 0.001; u += stepUnits) {
+          const x = originX + fromDisplayUnit(u) * scale;
+          if (x > originX + drawW + 1) break;
+          ctx.beginPath();
+          ctx.moveTo(x, topY);
+          ctx.lineTo(x, topY + 6);
+          ctx.stroke();
+          ctx.fillText(`${u}`, x, topY - 2);
+        }
+
+        // Left vertical ruler
+        const leftX = originX - 24;
+        ctx.beginPath();
+        ctx.moveTo(leftX, originY);
+        ctx.lineTo(leftX, originY + drawH);
+        ctx.stroke();
+
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        for (let u = 0; u <= totalHUnits + 0.001; u += stepUnits) {
+          const y = originY + fromDisplayUnit(u) * scale;
+          if (y > originY + drawH + 1) break;
+          ctx.beginPath();
+          ctx.moveTo(leftX, y);
+          ctx.lineTo(leftX + 6, y);
+          ctx.stroke();
+          ctx.fillText(`${u}`, leftX - 4, y);
+        }
+
+        ctx.restore();
+      }
+
+      /* =======================================================================
+         POINTER, ZOOM & PAN INTERACTIONS
+         ======================================================================= */
+      function getCanvasPoint(evt) {
+        const rect = els.canvas.getBoundingClientRect();
+        const clientX = evt.touches && evt.touches.length ? evt.touches[0].clientX : evt.clientX;
+        const clientY = evt.touches && evt.touches.length ? evt.touches[0].clientY : evt.clientY;
+        return {
+          x: clientX - rect.left,
+          y: clientY - rect.top
+        };
+      }
+
+      function hitTestCheckbox(px, py) {
+        for (const cb of state.tileCheckboxes) {
+          if (px >= cb.x - 3 && px <= cb.x + cb.size + 3 && py >= cb.y - 3 && py <= cb.y + cb.size + 3) {
+            return cb;
+          }
+        }
+        return null;
+      }
+
+      function hitTestSplit(px, py) {
+        if (!state.layout) return null;
+        const { originX, originY, drawW, drawH, scale } = state.layout;
+        const tol = 10;
+
+        if (py >= originY - 22 && py <= originY + drawH + 12) {
+          for (let i = 0; i < state.vSplits.length; i++) {
+            const x = originX + state.vSplits[i] * scale;
+            if (Math.abs(px - x) <= tol) return { axis: "v", index: i };
+          }
+        }
+        if (px >= originX - 22 && px <= originX + drawW + 12) {
+          for (let i = 0; i < state.hSplits.length; i++) {
+            const y = originY + state.hSplits[i] * scale;
+            if (Math.abs(py - y) <= tol) return { axis: "h", index: i };
+          }
+        }
+        return null;
+      }
+
+      function onPointerDown(evt) {
+        if (!state.image || !state.layout) return;
+        const pt = getCanvasPoint(evt);
+
+        // 1. Check tile include/skip checkbox first
+        const cbHit = hitTestCheckbox(pt.x, pt.y);
+        if (cbHit) {
+          evt.preventDefault();
+          if (state.disabledTiles.has(cbHit.key)) {
+            state.disabledTiles.delete(cbHit.key);
+          } else {
+            state.disabledTiles.add(cbHit.key);
+          }
+          updateUI();
+          drawPreview();
+          return;
+        }
+
+        // 2. Check split lines
+        const hit = hitTestSplit(pt.x, pt.y);
+        if (hit) {
+          evt.preventDefault();
+          state.selectedSplit = hit;
+          const bounds = getSplitDragBounds(hit.axis, hit.index);
+          state.dragging = {
+            axis: hit.axis,
+            index: hit.index,
+            min: bounds.min,
+            max: bounds.max
+          };
+          updateUI();
+          drawPreview();
+        } else {
+          if (state.selectedSplit) {
+            state.selectedSplit = null;
+            updateUI();
+          }
+          evt.preventDefault();
+          state.panning = {
+            startX: pt.x,
+            startY: pt.y,
+            origPanX: state.panX,
+            origPanY: state.panY
+          };
+          els.canvas.style.cursor = "grabbing";
+          drawPreview();
+        }
+      }
+
+      function onPointerMove(evt) {
+        if (!state.image || !state.layout) return;
+        const pt = getCanvasPoint(evt);
+
+        if (state.dragging) {
+          evt.preventDefault();
+          const { originX, originY, scale } = state.layout;
+          const { axis, index, min, max } = state.dragging;
+          const rawIn = axis === "v" ? (pt.x - originX) / scale : (pt.y - originY) / scale;
+          const clamped = Math.max(min, Math.min(max, rawIn));
+
+          if (axis === "v") state.vSplits[index] = clamped;
+          else state.hSplits[index] = clamped;
+
+          updateUI();
+          drawPreview();
+          return;
+        }
+
+        if (state.panning) {
+          evt.preventDefault();
+          state.panX = state.panning.origPanX + (pt.x - state.panning.startX);
+          state.panY = state.panning.origPanY + (pt.y - state.panning.startY);
+          drawPreview();
+          return;
+        }
+
+        const cbHit = hitTestCheckbox(pt.x, pt.y);
+        const nextCbKey = cbHit ? cbHit.key : null;
+        const cbChanged = nextCbKey !== state.hoverCheckbox;
+        state.hoverCheckbox = nextCbKey;
+
+        if (cbHit) {
+          const splitChanged = Boolean(state.hoverSplit);
+          state.hoverSplit = null;
+          els.canvas.style.cursor = "pointer";
+          if (cbChanged || splitChanged) drawPreview();
+          return;
+        }
+
+        const hit = hitTestSplit(pt.x, pt.y);
+        const prev = state.hoverSplit;
+        const changed = (!hit && prev) || (hit && !prev) || (hit && prev && (hit.axis !== prev.axis || hit.index !== prev.index));
+        state.hoverSplit = hit;
+        if (hit) {
+          els.canvas.style.cursor = hit.axis === "v" ? "col-resize" : "row-resize";
+        } else {
+          els.canvas.style.cursor = state.zoom > 1.01 ? "grab" : "default";
+        }
+        if (changed || cbChanged) drawPreview();
+      }
+
+      function onPointerUp() {
+        if (state.dragging) {
+          state.dragging = null;
+          drawPreview();
+        }
+        if (state.panning) {
+          state.panning = null;
+          els.canvas.style.cursor = state.zoom > 1.01 ? "grab" : "default";
+        }
+      }
+
+      function setZoom(newZoom, pivotCanvasX, pivotCanvasY) {
+        const clamped = Math.max(0.5, Math.min(5.0, newZoom));
+        if (state.layout && Number.isFinite(pivotCanvasX) && Number.isFinite(pivotCanvasY)) {
+          const oldScale = state.layout.scale;
+          const newScale = state.layout.fitScale * clamped;
+          const ratio = newScale / oldScale;
+          const dpr = window.devicePixelRatio || 1;
+          const cw = els.canvas.width / dpr;
+          const ch = els.canvas.height / dpr;
+          const cx = cw / 2;
+          const cy = ch / 2;
+          state.panX = (pivotCanvasX - cx) - ((pivotCanvasX - cx) - state.panX) * ratio;
+          state.panY = (pivotCanvasY - cy) - ((pivotCanvasY - cy) - state.panY) * ratio;
+        }
+        state.zoom = clamped;
+        updateUI();
+        drawPreview();
+      }
+
+      /* =======================================================================
+         100% OFFLINE NATIVE PDF 1.4 GENERATOR (Zero External Dependencies)
+         ======================================================================= */
+      function base64ToUint8Array(base64) {
+        const bin = atob(base64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) {
+          bytes[i] = bin.charCodeAt(i);
+        }
+        return bytes;
+      }
+
+      function asciiBytes(str) {
+        const bytes = new Uint8Array(str.length);
+        for (let i = 0; i < str.length; i++) {
+          bytes[i] = str.charCodeAt(i) & 0xff;
+        }
+        return bytes;
+      }
+
+      function buildPdfDocument(pagesData, pageWPt, pageHPt) {
+        const chunks = [];
+        let byteOffset = 0;
+        const offsets = [0]; // Index 0 is free object 0
+
+        const pushBytes = (arr) => {
+          chunks.push(arr);
+          byteOffset += arr.length;
+        };
+        const pushStr = (str) => pushBytes(asciiBytes(str));
+
+        // PDF 1.4 Header + binary comment
+        pushStr("%PDF-1.4\n");
+        pushBytes(new Uint8Array([0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a]));
+
+        const pageObjIds = [];
+        const baseObjStart = 4;
+        for (let i = 0; i < pagesData.length; i++) {
+          pageObjIds.push(baseObjStart + i * 3);
+        }
+
+        // Obj 1: Catalog
+        offsets[1] = byteOffset;
+        pushStr("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+
+        // Obj 2: Pages
+        offsets[2] = byteOffset;
+        const kidsStr = pageObjIds.map((id) => `${id} 0 R`).join(" ");
+        pushStr(`2 0 obj\n<< /Type /Pages /Kids [ ${kidsStr} ] /Count ${pagesData.length} >>\nendobj\n`);
+
+        // Obj 3: Standard Type1 Font (Helvetica-Bold)
+        offsets[3] = byteOffset;
+        pushStr("3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n");
+
+        // Per-page objects
+        pagesData.forEach((p, idx) => {
+          const pageObjId = baseObjStart + idx * 3;
+          const imgObjId = pageObjId + 1;
+          const contentObjId = pageObjId + 2;
+
+          // Page Object
+          offsets[pageObjId] = byteOffset;
+          pushStr(
+            `${pageObjId} 0 obj\n` +
+            `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWPt.toFixed(3)} ${pageHPt.toFixed(3)}] ` +
+            `/Resources << /Font << /F1 3 0 R >> /XObject << /Im0 ${imgObjId} 0 R >> >> ` +
+            `/Contents ${contentObjId} 0 R >>\nendobj\n`
+          );
+
+          // Image XObject (DCTDecode / JPEG)
+          offsets[imgObjId] = byteOffset;
+          pushStr(
+            `${imgObjId} 0 obj\n` +
+            `<< /Type /XObject /Subtype /Image /Width ${p.pixelW} /Height ${p.pixelH} ` +
+            `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${p.jpegBytes.length} >>\nstream\n`
+          );
+          pushBytes(p.jpegBytes);
+          pushStr("\nendstream\nendobj\n");
+
+          // Content Stream Object
+          const contentBytes = asciiBytes(p.contentStream);
+          offsets[contentObjId] = byteOffset;
+          pushStr(`${contentObjId} 0 obj\n<< /Length ${contentBytes.length} >>\nstream\n`);
+          pushBytes(contentBytes);
+          pushStr("\nendstream\nendobj\n");
+        });
+
+        // Cross-reference table
+        const xrefOffset = byteOffset;
+        const totalObjs = offsets.length;
+        pushStr(`xref\n0 ${totalObjs}\n0000000000 65535 f \n`);
+        for (let i = 1; i < totalObjs; i++) {
+          const offStr = String(offsets[i]).padStart(10, "0");
+          pushStr(`${offStr} 00000 n \n`);
+        }
+
+        // Trailer
+        pushStr(
+          `trailer\n<< /Size ${totalObjs} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`
+        );
+
+        return new Blob(chunks, { type: "application/pdf" });
+      }
+
+      function exportToPdf() {
+        if (!state.image) return;
+
+        const colsCheck = state.vSplits.length + 1;
+        const rowsCheck = state.hSplits.length + 1;
+        const enabledTilesCount = colsCheck * rowsCheck - state.disabledTiles.size;
+        if (enabledTilesCount <= 0) {
+          showToast("All pages are unchecked! Enable at least one page to export.", "warn");
+          return;
+        }
+
+        els.btnExportPdf.disabled = true;
+        els.btnExportPdf.textContent = "Generating PDF…";
+
+        setTimeout(() => {
+          try {
+            const c = getPageConstraints();
+            const pageWPt = c.paperW * 72;
+            const pageHPt = c.paperH * 72;
+            const marginPt = c.margin * 72;
+            const footerPt = c.footerReserve * 72;
+            const printableWPt = c.printableW * 72;
+            const printableHPt = c.printableH * 72;
+
+            const targetDpi = state.compressEmail ? 150 : 300;
+            const jpegQuality = state.compressEmail ? 0.72 : 0.92;
+
+            const xEdges = [0, ...state.vSplits, state.widthIn];
+            const yEdges = [0, ...state.hSplits, state.heightIn];
+            const cols = xEdges.length - 1;
+            const rows = yEdges.length - 1;
+
+            const pagesData = [];
+
+            // Optional Page 0: Assembly Key / Miniature Grid Overview
+            if (state.includeCoverPage) {
+              const coverCanvas = document.createElement("canvas");
+              const coverMaxPx = 1200;
+              const coverRatio = state.heightIn / state.widthIn;
+              const covW = coverRatio >= 1 ? Math.round(coverMaxPx / coverRatio) : coverMaxPx;
+              const covH = coverRatio >= 1 ? coverMaxPx : Math.round(coverMaxPx * coverRatio);
+              coverCanvas.width = Math.max(120, covW);
+              coverCanvas.height = Math.max(120, covH);
+              const cg = coverCanvas.getContext("2d");
+
+              cg.fillStyle = "#ffffff";
+              cg.fillRect(0, 0, coverCanvas.width, coverCanvas.height);
+              cg.drawImage(state.image, 0, 0, coverCanvas.width, coverCanvas.height);
+
+              const sxCov = coverCanvas.width / state.widthIn;
+              const syCov = coverCanvas.height / state.heightIn;
+              for (let r = 0; r < rows; r++) {
+                for (let col = 0; col < cols; col++) {
+                  const tx = xEdges[col] * sxCov;
+                  const ty = yEdges[r] * syCov;
+                  const tw = (xEdges[col + 1] - xEdges[col]) * sxCov;
+                  const th = (yEdges[r + 1] - yEdges[r]) * syCov;
+                  const isSkipped = state.disabledTiles.has(`${r},${col}`);
+
+                  if (isSkipped) {
+                    cg.fillStyle = "rgba(255, 255, 255, 0.78)";
+                    cg.fillRect(tx, ty, tw, th);
+                    cg.strokeStyle = "#dc2626";
+                    cg.lineWidth = Math.max(2, coverCanvas.width * 0.003);
+                    cg.beginPath();
+                    cg.moveTo(tx + 4, ty + 4);
+                    cg.lineTo(tx + tw - 4, ty + th - 4);
+                    cg.moveTo(tx + tw - 4, ty + 4);
+                    cg.lineTo(tx + 4, ty + th - 4);
+                    cg.stroke();
+                  }
+
+                  cg.strokeStyle = "#0284c7";
+                  cg.lineWidth = Math.max(2, coverCanvas.width * 0.0025);
+                  cg.strokeRect(tx, ty, tw, th);
+
+                  const lbl = getGridLabel(r, col);
+                  const fs = Math.max(16, Math.min(44, Math.min(tw, th) * 0.28));
+                  cg.font = `700 ${fs}px sans-serif`;
+                  const lw = cg.measureText(lbl).width + fs * 0.7;
+                  const lh = fs * 1.35;
+                  const bx = tx + (tw - lw) / 2;
+                  const by = ty + (th - lh) / 2;
+                  cg.fillStyle = "rgba(255, 255, 255, 0.92)";
+                  cg.strokeStyle = isSkipped ? "#dc2626" : "#0f172a";
+                  cg.lineWidth = 2;
+                  cg.fillRect(bx, by, lw, lh);
+                  cg.strokeRect(bx, by, lw, lh);
+                  cg.fillStyle = isSkipped ? "#dc2626" : "#0f172a";
+                  cg.textAlign = "center";
+                  cg.textBaseline = "middle";
+                  cg.fillText(lbl, bx + lw / 2, by + lh / 2 + 1);
+                }
+              }
+
+              const covJpeg = base64ToUint8Array(coverCanvas.toDataURL("image/jpeg", 0.85).split(",")[1]);
+              const headerH = 38;
+              const footerH = 28;
+              const availCovW = Math.max(72, pageWPt - 2 * marginPt - 16);
+              const availCovH = Math.max(72, pageHPt - 2 * marginPt - headerH - footerH);
+              const covScale = Math.min(availCovW / coverCanvas.width, availCovH / coverCanvas.height);
+              const drawCovW = coverCanvas.width * covScale;
+              const drawCovH = coverCanvas.height * covScale;
+              const covLeft = (pageWPt - drawCovW) / 2;
+              const covBottom = marginPt + footerH + (availCovH - drawCovH) / 2;
+
+              const safeTitle = state.imageName.replace(/[()\\]/g, "");
+              const subtitle = `Size: ${formatDim(state.widthIn)} x ${formatDim(state.heightIn)}  |  Grid: ${cols}x${rows}  |  Printed Tiles: ${enabledTilesCount} of ${cols * rows}`;
+
+              const covOps = [
+                "q",
+                `${drawCovW.toFixed(3)} 0 0 ${drawCovH.toFixed(3)} ${covLeft.toFixed(3)} ${covBottom.toFixed(3)} cm`,
+                "/Im0 Do",
+                "Q",
+                "q",
+                "0.75 w 0.1 0.1 0.1 RG",
+                `${covLeft.toFixed(3)} ${covBottom.toFixed(3)} ${drawCovW.toFixed(3)} ${drawCovH.toFixed(3)} re S`,
+                "0 0 0 rg",
+                "BT",
+                "/F1 14 Tf",
+                `${Math.max(marginPt, 24).toFixed(3)} ${(pageHPt - marginPt - 18).toFixed(3)} Td`,
+                `(ASSEMBLY KEY: ${safeTitle}) Tj`,
+                "ET",
+                "BT",
+                "/F1 9 Tf",
+                `${Math.max(marginPt, 24).toFixed(3)} ${(marginPt + 8).toFixed(3)} Td`,
+                `(${subtitle}) Tj`,
+                "ET",
+                "Q"
+              ];
+
+              pagesData.push({
+                pixelW: coverCanvas.width,
+                pixelH: coverCanvas.height,
+                jpegBytes: covJpeg,
+                contentStream: covOps.join("\n")
+              });
+            }
+
+            const tileCanvas = document.createElement("canvas");
+            const tctx = tileCanvas.getContext("2d");
+            let exportedTileIndex = 0;
+
+            for (let r = 0; r < rows; r++) {
+              for (let col = 0; col < cols; col++) {
+                if (state.disabledTiles.has(`${r},${col}`)) continue;
+
+                const x0In = xEdges[col];
+                const y0In = yEdges[r];
+                const coreWIn = xEdges[col + 1] - x0In;
+                const coreHIn = yEdges[r + 1] - y0In;
+
+                const rightOverlapIn = col < cols - 1 ? c.overlap : 0;
+                const bottomOverlapIn = r < rows - 1 ? c.overlap : 0;
+
+                // Render ONLY the exact core split image so design never exceeds the alignment crosshairs
+                const srcX = (x0In / state.widthIn) * state.natW;
+                const srcY = (y0In / state.heightIn) * state.natH;
+                const srcW = (coreWIn / state.widthIn) * state.natW;
+                const srcH = (coreHIn / state.heightIn) * state.natH;
+
+                const pixelW = Math.max(16, Math.round(coreWIn * targetDpi));
+                const pixelH = Math.max(16, Math.round(coreHIn * targetDpi));
+                tileCanvas.width = pixelW;
+                tileCanvas.height = pixelH;
+
+                tctx.fillStyle = "#ffffff";
+                tctx.fillRect(0, 0, pixelW, pixelH);
+                tctx.imageSmoothingEnabled = true;
+                tctx.imageSmoothingQuality = "high";
+                tctx.drawImage(state.image, srcX, srcY, srcW, srcH, 0, 0, pixelW, pixelH);
+
+                const jpegBytes = base64ToUint8Array(
+                  tileCanvas.toDataURL("image/jpeg", jpegQuality).split(",")[1]
+                );
+
+                // PDF coordinates (origin bottom-left)
+                const coreWPt = coreWIn * 72;
+                const coreHPt = coreHIn * 72;
+                const totalWPt = (coreWIn + rightOverlapIn) * 72;
+                const totalHPt = (coreHIn + bottomOverlapIn) * 72;
+
+                const tileLeft = marginPt + (printableWPt - totalWPt) / 2;
+                const tileBottom = marginPt + footerPt + (printableHPt - totalHPt) / 2;
+                const coreLeft = tileLeft;
+                const coreBottom = tileBottom + bottomOverlapIn * 72;
+                const coreRight = coreLeft + coreWPt;
+                const coreTop = coreBottom + coreHPt;
+
+                const ops = [];
+
+                // 1. Place clipped core artwork strictly inside core bounds
+                ops.push("q");
+                ops.push(`${coreWPt.toFixed(3)} 0 0 ${coreHPt.toFixed(3)} ${coreLeft.toFixed(3)} ${coreBottom.toFixed(3)} cm`);
+                ops.push("/Im0 Do");
+                ops.push("Q");
+
+                // 2. Optional Overlap Tape Shading & "TAPE OVERLAP" label
+                if (state.showOverlapHatch && (rightOverlapIn > 0.001 || bottomOverlapIn > 0.001)) {
+                  const drawPdfHatch = (hx, hy, hw, hh) => {
+                    ops.push("q");
+                    ops.push(`${hx.toFixed(3)} ${hy.toFixed(3)} ${hw.toFixed(3)} ${hh.toFixed(3)} re W n`);
+                    ops.push("0.35 w 0.76 0.76 0.76 RG");
+                    const step = 7;
+                    for (let d = -hh; d < hw + hh; d += step) {
+                      ops.push(`${(hx + d).toFixed(3)} ${hy.toFixed(3)} m ${(hx + d + hh).toFixed(3)} ${(hy + hh).toFixed(3)} l S`);
+                    }
+                    ops.push("Q");
+                  };
+
+                  if (rightOverlapIn > 0.001) {
+                    const rwPt = rightOverlapIn * 72;
+                    drawPdfHatch(coreRight, tileBottom, rwPt, totalHPt);
+                    if (rwPt >= 10) {
+                      ops.push("q 0.45 0.45 0.45 rg BT /F1 6 Tf");
+                      ops.push(`0 1 -1 0 ${(coreRight + rwPt / 2 + 2).toFixed(3)} ${(coreBottom + coreHPt / 2 - 24).toFixed(3)} Tm`);
+                      ops.push("(TAPE OVERLAP) Tj ET Q");
+                    }
+                  }
+                  if (bottomOverlapIn > 0.001) {
+                    const bhPt = bottomOverlapIn * 72;
+                    drawPdfHatch(coreLeft, tileBottom, coreWPt, bhPt);
+                    if (bhPt >= 10) {
+                      ops.push("q 0.45 0.45 0.45 rg BT /F1 6 Tf");
+                      ops.push(`${(coreLeft + coreWPt / 2 - 24).toFixed(3)} ${(tileBottom + bhPt / 2 - 2).toFixed(3)} Td`);
+                      ops.push("(TAPE OVERLAP) Tj ET Q");
+                    }
+                  }
+                }
+
+                // 3. Optional Thin Border around core tile + dashed border around overlap tab
+                if (state.showBorder) {
+                  ops.push("q");
+                  ops.push("0.5 w 0.25 0.25 0.25 RG");
+                  ops.push(`${coreLeft.toFixed(3)} ${coreBottom.toFixed(3)} ${coreWPt.toFixed(3)} ${coreHPt.toFixed(3)} re S`);
+                  if (rightOverlapIn > 0.001 || bottomOverlapIn > 0.001) {
+                    ops.push("0.35 w [3 3] 0 d 0.55 0.55 0.55 RG");
+                    ops.push(`${tileLeft.toFixed(3)} ${tileBottom.toFixed(3)} ${totalWPt.toFixed(3)} ${totalHPt.toFixed(3)} re S`);
+                  }
+                  ops.push("Q");
+                }
+
+                // 4. Optional 1" / 5 cm Calibration Bar on the first exported tile page
+                if (state.showCalibration && exportedTileIndex === 0) {
+                  const safeEdgePt = Math.max(marginPt, 14);
+                  const isCm = state.unit === "cm";
+                  const barLenPt = isCm ? (5 / CM_PER_INCH) * 72 : 72;
+                  const ticks = isCm ? 5 : 4;
+                  const barLabel = isCm ? "5 CM SCALE CHECK (PRINT AT 100%)" : "1 INCH SCALE CHECK (PRINT AT 100%)";
+                  const bx = safeEdgePt;
+                  const by = safeEdgePt + 3;
+
+                  ops.push("q");
+                  ops.push("0.65 w 0 0 0 RG 0 0 0 rg");
+                  ops.push(`${bx.toFixed(3)} ${by.toFixed(3)} m ${(bx + barLenPt).toFixed(3)} ${by.toFixed(3)} l S`);
+                  for (let t = 0; t <= ticks; t++) {
+                    const tx = bx + (barLenPt * t) / ticks;
+                    const tickH = t === 0 || t === ticks ? 6 : 3.5;
+                    ops.push(`${tx.toFixed(3)} ${by.toFixed(3)} m ${tx.toFixed(3)} ${(by + tickH).toFixed(3)} l S`);
+                  }
+                  ops.push("BT");
+                  ops.push("/F1 6.5 Tf");
+                  ops.push(`${bx.toFixed(3)} ${(by + 8.5).toFixed(3)} Td`);
+                  ops.push(`(${barLabel}) Tj`);
+                  ops.push("ET");
+                  ops.push("Q");
+                }
+
+                // 5. Optional Alignment Marks (Corner Crosshairs) & Page Bottom-Right Grid Label
+                if (state.showMarks) {
+                  const arm = 8;
+                  const corners = [
+                    [coreLeft, coreBottom],
+                    [coreRight, coreBottom],
+                    [coreLeft, coreTop],
+                    [coreRight, coreTop]
+                  ];
+
+                  ops.push("q");
+                  ops.push("0.75 w 0 0 0 RG");
+                  corners.forEach(([cxp, cyp]) => {
+                    ops.push(`${(cxp - arm).toFixed(3)} ${cyp.toFixed(3)} m ${(cxp + arm).toFixed(3)} ${cyp.toFixed(3)} l S`);
+                    ops.push(`${cxp.toFixed(3)} ${(cyp - arm).toFixed(3)} m ${cxp.toFixed(3)} ${(cyp + arm).toFixed(3)} l S`);
+                  });
+
+                  // Grid ID anchored to bottom-right corner of the printer page (off the artwork)
+                  const label = getGridLabel(r, col);
+                  const safeEdgePt = Math.max(marginPt, 14);
+                  const boxW = Math.max(28, label.length * 8 + 14);
+                  const boxH = 18;
+                  const boxX = pageWPt - safeEdgePt - boxW;
+                  const boxY = safeEdgePt;
+
+                  ops.push("1 1 1 rg 0 0 0 RG 0.6 w");
+                  ops.push(`${boxX.toFixed(3)} ${boxY.toFixed(3)} ${boxW.toFixed(3)} ${boxH.toFixed(3)} re B`);
+                  ops.push("0 0 0 rg");
+                  ops.push("BT");
+                  ops.push("/F1 10 Tf");
+                  const estTextW = label.length * 6;
+                  ops.push(`${(boxX + (boxW - estTextW) / 2).toFixed(3)} ${(boxY + 5.5).toFixed(3)} Td`);
+                  ops.push(`(${label}) Tj`);
+                  ops.push("ET");
+                  ops.push("Q");
+                }
+
+                pagesData.push({
+                  pixelW,
+                  pixelH,
+                  jpegBytes,
+                  contentStream: ops.join("\n")
+                });
+                exportedTileIndex++;
+              }
+            }
+
+            const pdfBlob = buildPdfDocument(pagesData, pageWPt, pageHPt);
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement("a");
+            a.href = url;
+            const suffix = state.compressEmail ? "-email" : "-print";
+            a.download = `${state.imageName}-${cols}x${rows}${suffix}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+            const kb = (pdfBlob.size / 1024).toFixed(0);
+            showToast(`Exported ${pagesData.length}-page PDF (${kb} KB). Print at 100% / Actual Size!`, "success");
+          } catch (err) {
+            console.error(err);
+            showToast("Failed to generate PDF: " + err.message, "error");
+          } finally {
+            els.btnExportPdf.disabled = false;
+            els.btnExportPdf.textContent = "Export Print-Ready PDF";
+          }
+        }, 30);
+      }
+
+      /* =======================================================================
+         EVENT LISTENERS
+         ======================================================================= */
+      // Upload Dropzone
+      els.dropzone.addEventListener("click", () => els.fileInput.click());
+      els.dropzone.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          els.fileInput.click();
+        }
+      });
+      els.fileInput.addEventListener("change", (e) => {
+        if (e.target.files && e.target.files[0]) {
+          handleFileUpload(e.target.files[0]);
+          els.fileInput.value = "";
+        }
+      });
+      els.dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        els.dropzone.classList.add("dragover");
+      });
+      els.dropzone.addEventListener("dragleave", () => els.dropzone.classList.remove("dragover"));
+      els.dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        els.dropzone.classList.remove("dragover");
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleFileUpload(e.dataTransfer.files[0]);
+        }
+      });
+
+      els.btnSample.addEventListener("click", generateSampleStencil);
+      els.btnExportPdf.addEventListener("click", exportToPdf);
+
+      // Stencil Prep & Filters
+      els.btnRotate.addEventListener("click", () => {
+        if (!state.rawImage) return;
+        state.rotation = (state.rotation + 90) % 360;
+        const oldW = state.widthIn;
+        state.widthIn = state.heightIn;
+        state.heightIn = oldW;
+        state.disabledTiles.clear();
+        rebuildProcessedImage(false);
+        resetEvenSplits();
+      });
+
+      els.btnTrim.addEventListener("click", () => {
+        if (!state.rawImage) return;
+        if (!state.trimmed) {
+          state.trimBounds = computeTrimBounds(state.rawImage);
+          state.trimmed = true;
+          rebuildProcessedImage(true);
+          showToast("Trimmed empty whitespace around design.", "success");
+        } else {
+          state.trimmed = false;
+          rebuildProcessedImage(true);
+          showToast("Restored original untrimmed canvas bounds.", "info");
+        }
+        updateUI();
+        drawPreview();
+      });
+
+      els.toggleMirror.addEventListener("change", () => {
+        state.mirrorX = els.toggleMirror.checked;
+        if (state.rawImage) {
+          rebuildProcessedImage(false);
+          updateUI();
+          drawPreview();
+        }
+      });
+
+      els.selectFilter.addEventListener("change", () => {
+        state.filterMode = els.selectFilter.value;
+        if (state.rawImage) rebuildProcessedImage(false);
+        updateUI();
+        drawPreview();
+      });
+
+      els.inputThreshold.addEventListener("input", () => {
+        state.filterThreshold = parseInt(els.inputThreshold.value, 10) || 128;
+        els.thresholdVal.textContent = String(state.filterThreshold);
+        if (state.rawImage) {
+          rebuildProcessedImage(false);
+          drawPreview();
+        }
+      });
+
+      // Units
+      els.unitIn.addEventListener("click", () => {
+        state.unit = "in";
+        saveSettings();
+        updateUI();
+        drawPreview();
+      });
+      els.unitCm.addEventListener("click", () => {
+        state.unit = "cm";
+        saveSettings();
+        updateUI();
+        drawPreview();
+      });
+
+      // Physical Dimensions
+      els.inputWidth.addEventListener("input", () => {
+        const val = parseFloat(els.inputWidth.value);
+        if (Number.isFinite(val) && val > 0.2) {
+          state.widthIn = Math.max(0.5, fromDisplayUnit(val));
+          if (state.lockAspect && state.natW > 0) {
+            state.heightIn = Math.max(0.5, state.widthIn * (state.natH / state.natW));
+          }
+          validateAllSplits();
+          updateUI();
+          drawPreview();
+        }
+      });
+
+      els.inputHeight.addEventListener("input", () => {
+        const val = parseFloat(els.inputHeight.value);
+        if (Number.isFinite(val) && val > 0.2) {
+          state.heightIn = Math.max(0.5, fromDisplayUnit(val));
+          if (state.lockAspect && state.natH > 0) {
+            state.widthIn = Math.max(0.5, state.heightIn * (state.natW / state.natH));
+          }
+          validateAllSplits();
+          updateUI();
+          drawPreview();
+        }
+      });
+
+      els.toggleAspect.addEventListener("change", () => {
+        state.lockAspect = els.toggleAspect.checked;
+        if (state.lockAspect && state.natW > 0) {
+          state.heightIn = Math.max(0.5, state.widthIn * (state.natH / state.natW));
+          validateAllSplits();
+          updateUI();
+          drawPreview();
+        }
+      });
+
+      // Paper & Margins
+      els.selectPaper.addEventListener("change", () => {
+        state.paperKey = els.selectPaper.value;
+        saveSettings();
+        validateAllSplits();
+        updateUI();
+        drawPreview();
+      });
+      els.orientPortrait.addEventListener("click", () => {
+        state.orientation = "portrait";
+        saveSettings();
+        validateAllSplits();
+        updateUI();
+        drawPreview();
+      });
+      els.orientLandscape.addEventListener("click", () => {
+        state.orientation = "landscape";
+        saveSettings();
+        validateAllSplits();
+        updateUI();
+        drawPreview();
+      });
+      els.inputPrinterMargin.addEventListener("input", () => {
+        const val = parseFloat(els.inputPrinterMargin.value);
+        if (Number.isFinite(val) && val >= 0) {
+          state.printerMarginIn = fromDisplayUnit(val);
+          saveSettings();
+          validateAllSplits();
+          updateUI();
+          drawPreview();
+        }
+      });
+      els.inputOverlap.addEventListener("input", () => {
+        const val = parseFloat(els.inputOverlap.value);
+        if (Number.isFinite(val) && val >= 0) {
+          state.overlapIn = fromDisplayUnit(val);
+          saveSettings();
+          validateAllSplits();
+          updateUI();
+          drawPreview();
+        }
+      });
+
+      // Split Line & Print Toggle Controls
+      els.btnAddV.addEventListener("click", () => addSplit("v"));
+      els.btnAddH.addEventListener("click", () => addSplit("h"));
+      els.btnRemoveSelected.addEventListener("click", removeSelectedSplit);
+      els.btnResetSplits.addEventListener("click", resetEvenSplits);
+      els.btnSkipBlanks.addEventListener("click", autoSkipBlankPages);
+      els.btnEnableAll.addEventListener("click", () => {
+        state.disabledTiles.clear();
+        updateUI();
+        drawPreview();
+      });
+      els.toggleBorder.addEventListener("change", () => {
+        state.showBorder = els.toggleBorder.checked;
+        saveSettings();
+        drawPreview();
+      });
+      els.toggleMarks.addEventListener("change", () => {
+        state.showMarks = els.toggleMarks.checked;
+        saveSettings();
+        validateAllSplits();
+        updateUI();
+        drawPreview();
+      });
+      els.toggleOverlapHatch.addEventListener("change", () => {
+        state.showOverlapHatch = els.toggleOverlapHatch.checked;
+        saveSettings();
+        drawPreview();
+      });
+      els.toggleCalibration.addEventListener("change", () => {
+        state.showCalibration = els.toggleCalibration.checked;
+        saveSettings();
+        validateAllSplits();
+        updateUI();
+        drawPreview();
+      });
+      els.toggleCoverPage.addEventListener("change", () => {
+        state.includeCoverPage = els.toggleCoverPage.checked;
+        saveSettings();
+      });
+      els.toggleCompress.addEventListener("change", () => {
+        state.compressEmail = els.toggleCompress.checked;
+        saveSettings();
+      });
+
+      // Workspace Zoom, Pan & Garment Overlay Controls
+      els.selectGarment.addEventListener("change", () => {
+        state.garmentOverlay = els.selectGarment.value;
+        saveSettings();
+        drawPreview();
+      });
+      els.btnZoomIn.addEventListener("click", () => setZoom(state.zoom * 1.25));
+      els.btnZoomOut.addEventListener("click", () => setZoom(state.zoom / 1.25));
+      els.btnZoomFit.addEventListener("click", () => {
+        state.zoom = 1.0;
+        state.panX = 0;
+        state.panY = 0;
+        updateUI();
+        drawPreview();
+      });
+      els.canvas.addEventListener("wheel", (e) => {
+        if (!state.image) return;
+        e.preventDefault();
+        const pt = getCanvasPoint(e);
+        const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+        setZoom(state.zoom * factor, pt.x, pt.y);
+      }, { passive: false });
+
+      // Canvas Mouse & Touch Events
+      els.canvas.addEventListener("mousedown", onPointerDown);
+      window.addEventListener("mousemove", onPointerMove);
+      window.addEventListener("mouseup", onPointerUp);
+
+      els.canvas.addEventListener("touchstart", onPointerDown, { passive: false });
+      window.addEventListener("touchmove", onPointerMove, { passive: false });
+      window.addEventListener("touchend", onPointerUp);
+
+      // Keyboard Delete & Arrow-Key Nudge for Selected Split
+      window.addEventListener("keydown", (e) => {
+        if (!state.selectedSplit) return;
+        const tag = document.activeElement && document.activeElement.tagName;
+        if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+
+        if (e.key === "Delete" || e.key === "Backspace") {
+          e.preventDefault();
+          removeSelectedSplit();
+          return;
+        }
+
+        const { axis, index } = state.selectedSplit;
+        const baseStepIn = state.unit === "cm" ? 0.1 / CM_PER_INCH : 0.05;
+        const step = e.shiftKey ? baseStepIn * 5 : baseStepIn;
+        let delta = 0;
+
+        if (axis === "v" && e.key === "ArrowLeft") delta = -step;
+        else if (axis === "v" && e.key === "ArrowRight") delta = step;
+        else if (axis === "h" && e.key === "ArrowUp") delta = -step;
+        else if (axis === "h" && e.key === "ArrowDown") delta = step;
+
+        if (delta !== 0) {
+          e.preventDefault();
+          const splits = axis === "v" ? state.vSplits : state.hSplits;
+          const bounds = getSplitDragBounds(axis, index);
+          splits[index] = Math.max(bounds.min, Math.min(bounds.max, splits[index] + delta));
+          updateUI();
+          drawPreview();
+        }
+      });
+
+      // Responsive Canvas Resize
+      window.addEventListener("resize", resizeCanvas);
+
+      // Initial Boot
+      loadSettings();
+      updateUI();
+      resizeCanvas();
+    })();
+  </script>
+</body>
+</html>
