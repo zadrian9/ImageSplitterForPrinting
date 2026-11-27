@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1120" />
+  <meta name="description" content="Offline browser tool for splitting large designs and stencils across multiple printable pages with interactive seam placement and PDF export." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png" />
   <title>Stencil &amp; Print Image Splitter — Offline Edition</title>
   <style>
     /* =========================================================================
@@ -3413,6 +3418,13 @@
       updateUI();
       resizeCanvas();
     })();
+  </script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch((err) => console.warn("ServiceWorker registration failed:", err));
+      });
+    }
   </script>
 </body>
 </html>

@@ -44,6 +44,10 @@ An offline, browser-based tool for splitting large designs and stencils across m
 1. Download or clone this repository from GitHub (`zadrian9/ImageSplitterForPrinting`).
 2. Open `index.html` directly in your web browser (double-click the file or drag it into a browser tab). No web server, package manager, or internet connection is required.
 
+### Install / Offline (PWA)
+
+When opened over `https://` (such as GitHub Pages) or `http://localhost`, you can install the app from your browser's address bar / menu; it caches all shell assets on first load and continues working offline.
+
 ## Usage
 
 1. **Load a Design**: Click or drop a PNG, JPG, WebP, or SVG image into **1. Design Image**.
